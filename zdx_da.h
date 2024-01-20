@@ -1,3 +1,28 @@
+/**
+ * MIT License
+ *
+ * Copyright (c) 2024 Mudit
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 #ifndef ZDX_DA_H_
 #define ZDX_DA_H_
 
@@ -7,7 +32,7 @@
 
 #define DA_ASSERT assert // can be defined by consumer to not throw and log for example
 #define DA_RESIZE_FACTOR 2 // double the dyn array capacity upon resize
-#define DA_MIN_CAPACITY 8 // hold 2 elements by default
+#define DA_MIN_CAPACITY 8 // hold 8 elements by default
 
 #define da_build_var_name(line, name, suffix) name ## _ ## line ## _ ## suffix
 #define da_var(line, name, suffix) da_build_var_name(line, name, suffix)
@@ -89,6 +114,6 @@
 
 #endif // ZDX_DA_H_
 
-#ifdef DYN_ARRAY_IMPLEMENTATION
+#ifdef ZDX_DA_IMPLEMENTATION
 // nothing needed here for now
-#endif // DYN_ARRAY_IMPLEMENTATION
+#endif // ZDX_DA_IMPLEMENTATION

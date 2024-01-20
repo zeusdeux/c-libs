@@ -4,11 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define bail(...) {                                     \
-    fprintf (stderr, "%s:%d: ", __FILE__, __LINE__);    \
-    fprintf (stderr, __VA_ARGS__);                      \
-    fprintf (stderr, "\n");                             \
-    exit(1);                                            \
+#define bail(...) {                             \
+    dbg(__VA_ARGS__);                           \
+    exit(1);                                    \
   }
 
 #ifdef ZDX_TRACE_ENABLE
