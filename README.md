@@ -7,13 +7,14 @@
 To use any library in this repository:
 
 1. copy the header file into your project - for e.g., copy `zdx_da.h`
-2. in *one* C file, do the following to include the implementation - for e.g., to use `zdx_da.h`
+2. copy the util header file into your project - `zdx_util.h`
+3. in *one* C file, do the following to include the implementation - for e.g., to use `zdx_da.h`
   ```c
   #define ZDX_DA_IMPLEMENTATION
   #include "<path to zdx_da.h>"
   ```
-3. in all other files, just a `#include <path to lib header>` should suffice
-4. done!
+4. in all other files, just a `#include <path to lib header>` should suffice
+5. done!
 
 You can find usage examples in `tests/<lib>_test.c` - for e.g., `zdx_da.h` usage can be found in `tests/zdx_da_test.c`.
 
