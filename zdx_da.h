@@ -103,9 +103,9 @@
   } while(0);
 
 #else // if not (__GNUC__ || __clang__)
-#define da_push(da, ...) DA_ASSERT("dyn_array.h only works when compiled with gcc or clang")
-#define da_pop(da, ...) DA_ASSERT("dyn_array.h only works when compiled with gcc or clang")
-#define da_free(da) DA_ASSERT("dyn_array.h only works when compiled with gcc or clang")
+#define da_push(da, ...) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
+#define da_pop(da, ...) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
+#define da_free(da) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
 #endif // __GNUC__ || __clang__
 
 #endif // ZDX_DA_H_
