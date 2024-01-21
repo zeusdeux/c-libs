@@ -6,12 +6,16 @@ DBG_TEST_FLAGS = $(DBG_FLAGS) -Wno-gnu-statement-expression-from-macro-expansion
 
 
 test_zdx_da:
-	@clang $(TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test && leaks --atExit -- ./tests/zdx_da_test
+	@clang $(TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test && ./tests/zdx_da_test
+	@echo "--- Checking for memory leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit -- ./tests/zdx_da_test
 
 test_zdx_da_dbg:
-	@clang $(DBG_TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test && leaks --atExit -- ./tests/zdx_da_test
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test_dbg && ./tests/zdx_da_test_dbg
+	@echo "--- Checking for memory leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_da_test_dbg
 
 clean:
-	$(RM) -fr ./tests/*_test ./tests/*.dSYM
+	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./tests/*.dSYM
 
 .PHONY: clean test_*
