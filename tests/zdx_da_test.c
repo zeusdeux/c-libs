@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include "../zdx_da.h"
 #include "../zdx_util.h"
 
@@ -21,6 +23,15 @@ typedef struct {
 
 void print_repl_history(ReplHistory *r)
 {
+  const char *zdx_disable_test_output = getenv("ZDX_DISABLE_TEST_OUTPUT");
+  bool disable_test_output = zdx_disable_test_output != NULL && ((strcmp(zdx_disable_test_output, "1") == 0)
+                                                                 || (strcmp(zdx_disable_test_output, "true") == 0)
+                                                                 || (strcmp(zdx_disable_test_output, "TRUE") == 0));
+
+  if (disable_test_output) {
+    return;
+  }
+
   printf("int i = %d\t| length %zu\t| capacity %zu\n", r->i, r->length, r->capacity);
 
   if (!r->length) {
@@ -37,6 +48,20 @@ void print_repl_history(ReplHistory *r)
 int main(void)
 {
   ReplHistory replHistory = {0};
+  ReplHistory moreReplHistory = {0};
+
+  ReplHistoryItem tempItem = { .input = "TEMP", .output = "ITEM" };
+  da_push(&moreReplHistory, tempItem);
+  da_push(&moreReplHistory, tempItem);
+  assertm(moreReplHistory.capacity == 2, "Expected: 2, Received: %zu", moreReplHistory.capacity);
+
+  tempItem.input = "CHANGED";
+  moreReplHistory.items[1].input = "CHANGED AS WELL";
+  assertm(strcmp(tempItem.input, "CHANGED") == 0, "Expected: \"CHANGED\", Received: \"%s\"", tempItem.input);
+  assertm(strcmp(moreReplHistory.items[1].input, "CHANGED AS WELL") == 0, "Expected: \"CHANGED AS WELL\", Received: \"%s\"", tempItem.input);
+  assertm(tempItem.input != moreReplHistory.items[1].input, "Expected: true, Received: false");
+  assertm(moreReplHistory.items[0].input != moreReplHistory.items[1].input, "Expected: true, Received: false");
+  da_free(&moreReplHistory);
 
   size_t idx = da_push(&replHistory,
           (ReplHistoryItem){ .input = "FIRST", .output = "ELEMENT" },
@@ -45,35 +70,37 @@ int main(void)
           (ReplHistoryItem){ .input = "typeof []", .output = "array" }
           );
 
-  assert(replHistory.capacity == 4 && "dyn arr should grow to accomodate no., of items being pushed");
-  assert(replHistory.length == 4 && "length should match no., of items pushed");
-  assert(idx == replHistory.length && "return value of da_push should match length");
+  assertm(replHistory.capacity == 4, "dyn arr should grow to accomodate no., of items being pushed");
+  assertm(replHistory.length == 4, "length should match no., of items pushed");
+  assertm(idx == replHistory.length, "return value of da_push should match length");
 
   replHistory.i = 200;
-  assert(replHistory.i == 200 && "other members of struct being used as dyn arr should work as expected");
+  assertm(replHistory.i == 200, "other members of struct being used as dyn arr should work as expected");
 
-  assert(replHistory.capacity == replHistory.length);
+  assertm(replHistory.capacity == replHistory.length,
+          "Expected capacity and length to be equal. Received: capacity %zu, length %zu",
+          replHistory.capacity, replHistory.length);
   da_push(&replHistory, (ReplHistoryItem){ .input = "3 + 4", .output = "7" });
 
-  assert(replHistory.capacity == 8 && "dyn arr should double in size (as DA_RESIZE_FACTOR is 2) when capacity is reached");
+  assertm(replHistory.capacity == 8, "dyn arr should double in size (as DA_RESIZE_FACTOR is 2) when capacity is reached");
 
   idx = da_push(&replHistory, (ReplHistoryItem){ .input = "sizeof(int)", .output = "4" });
   da_push(&replHistory, (ReplHistoryItem){ .input = "sizeof(uint64_t)", .output = "8" });
   da_push(&replHistory, (ReplHistoryItem){ .input = "LAST", .output = "ELEMENT" });
 
-  assert(replHistory.length == 8 && "length should match no., of items pushed");
-  assert(idx == (replHistory.length - 2) && "return value of da_push should match length");
-  assert(strcmp(replHistory.items[replHistory.length - 2].input, "sizeof(uint64_t)") == 0 && "element should match what was pushed");
-  assert(strcmp(replHistory.items[replHistory.length - 2].output, "8") == 0 && "element should match what was pushed");
+  assertm(replHistory.length == 8, "length should match no., of items pushed");
+  assertm(idx == (replHistory.length - 2), "return value of da_push should match length");
+  assertm(strcmp(replHistory.items[replHistory.length - 2].input, "sizeof(uint64_t)") == 0, "element should match what was pushed");
+  assertm(strcmp(replHistory.items[replHistory.length - 2].output, "8") == 0, "element should match what was pushed");
 
   replHistory.i -= 10;
-  assert(replHistory.i == 190 && "other members of struct being used as dyn arr should work as expected");
+  assertm(replHistory.i == 190, "other members of struct being used as dyn arr should work as expected. Expected: 190, Received: %d", replHistory.i);
 
   ReplHistoryItem ri = replHistory.items[5];
-  assert(strcmp(ri.input, "sizeof(int)") == 0 && "direct access of item in dyn arr should work as expected");
-  assert(strcmp(ri.output, "4") == 0 && "direct access of item in dyn arr should work as expected");
-  assert(replHistory.length == 8 && "length should match no., of items pushed and remain unchanged on direct items access");
-  assert(replHistory.capacity == 8 && "capacity should remain unchanged on direct items access");
+  assertm(strcmp(ri.input, "sizeof(int)") == 0, "direct access of item in dyn arr should work as expected");
+  assertm(strcmp(ri.output, "4") == 0, "direct access of item in dyn arr should work as expected");
+  assertm(replHistory.length == 8, "length should match no., of items pushed and remain unchanged on direct items access");
+  assertm(replHistory.capacity == 8, "capacity should remain unchanged on direct items access");
 
   ReplHistoryItem rj = {
     .input = "SOME INPUT",
@@ -82,18 +109,18 @@ int main(void)
   replHistory.items[5] = rj;
   ri = replHistory.items[5];
 
-  assert(strcmp(ri.input, "SOME INPUT") == 0 && "direct access of item in dyn arr should work as expected");
-  assert(strcmp(ri.output, "SOME OUTPUT") == 0 && "direct access of item in dyn arr should work as expected");
-  assert(replHistory.length == 8 && "length should match no., of items pushed and remain unchanged on direct items access");
-  assert(replHistory.capacity == 8 && "capacity should remain unchanged on direct items access");
+  assertm(strcmp(ri.input, "SOME INPUT") == 0, "direct access of item in dyn arr should work as expected");
+  assertm(strcmp(ri.output, "SOME OUTPUT") == 0, "direct access of item in dyn arr should work as expected");
+  assertm(replHistory.length == 8, "length should match no., of items pushed and remain unchanged on direct items access");
+  assertm(replHistory.capacity == 8, "capacity should remain unchanged on direct items access");
 
   print_repl_history(&replHistory);
 
   ReplHistoryItem popped = da_pop(&replHistory);
 
-  assert(replHistory.length == 7 && "length should reduce by one on da_pop()");
-  assert(strcmp(popped.input, "LAST") == 0 && "popped element should match last element pushed");
-  assert(strcmp(popped.output, "ELEMENT") == 0 && "popped element should match last element pushed");
+  assertm(replHistory.length == 7, "length should reduce by one on da_pop()");
+  assertm(strcmp(popped.input, "LAST") == 0, "popped element should match last element pushed");
+  assertm(strcmp(popped.output, "ELEMENT") == 0, "popped element should match last element pushed");
 
   da_pop(&replHistory);
   da_pop(&replHistory);
@@ -103,9 +130,9 @@ int main(void)
   da_pop(&replHistory);
   popped = da_pop(&replHistory);
 
-  assert(replHistory.length == 0 && "length should be zero once all elements are popped");
-  assert(strcmp(popped.input, "FIRST") == 0 && "last popped element should match first element pushed");
-  assert(strcmp(popped.output, "ELEMENT") == 0 && "last popped element should match first element pushed");
+  assertm(replHistory.length == 0, "length should be zero once all elements are popped");
+  assertm(strcmp(popped.input, "FIRST") == 0, "last popped element should match first element pushed");
+  assertm(strcmp(popped.output, "ELEMENT") == 0, "last popped element should match first element pushed");
 
   replHistory.i += 900;
 
@@ -115,11 +142,11 @@ int main(void)
 
   print_repl_history(&replHistory);
 
-  assert(replHistory.items == NULL && "After free(), items in dyn array container should be NULL ptr");
-  assert(replHistory.length == 0 && "After free(), length in dyn array container should be NULL ptr");
-  assert(replHistory.capacity == 0 && "After free(), capacity in dyn array container should be NULL ptr");
+  assertm(replHistory.items == NULL, "After free(), items in dyn array container should be NULL ptr");
+  assertm(replHistory.length == 0, "After free(), length in dyn array container should be NULL ptr");
+  assertm(replHistory.capacity == 0, "After free(), capacity in dyn array container should be NULL ptr");
 
-  assert(replHistory.i == 1090 && "After free(), other members of dyn array container should still work as expected");
+  assertm(replHistory.i == 1090, "After free(), other members of dyn array container should still work as expected");
 
   log(L_INFO, "<zdx_da_test> All ok!\n");
 

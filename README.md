@@ -120,9 +120,13 @@ This header contains utility macros and maybe utility functions in the future.
 
 #### Macros
 
+- `assertm(condition, ...)` - asserts if condition is truthy. If falsy, it prints the message provided in `...` to `stderr` and calls `abort()`
+  ```c
+  assertm(moreReplHistory.capacity == 2, "Expected: 2, Received: %zu", moreReplHistory.capacity);
+  ```
 - `log(ZDX_LOG_LEVEL, ...args)` - prints logs with given level to `stderr`.
 
-  Logging can be disabled by flag `-DNZDX_LOG_ENABLE`.
+  Logging can be disabled by flag `-DZDX_LOG_DISABLE`.
   ```c
   log(L_INFO, "%d tests passed. All ok!\n", 10);
   ```

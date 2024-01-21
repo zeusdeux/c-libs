@@ -29,6 +29,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define assertm(cond, ...)                                                                                \
+  (cond) ?                                                                                                \
+         ((void)0)                                                                                        \
+       : (fprintf(stderr, "%s:%d:\t[%s] FAILED ASSERTION: %s => ", __FILE__, __LINE__, __func__, #cond),  \
+          fprintf(stderr, __VA_ARGS__),                                                                   \
+          fprintf(stderr, "\n"),                                                                          \
+          abort())
+
 #define bail(...) {                             \
     dbg(__VA_ARGS__);                           \
     exit(1);                                    \
@@ -44,7 +52,7 @@
 #define dbg(...) {}
 #endif // ZDX_TRACE_ENABLE
 
-#ifdef NZDX_LOG_ENABLE
+#ifdef ZDX_LOG_DISABLE
 #define log(level, ...) {}
 #else
 typedef enum {
@@ -66,5 +74,6 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
     fprintf (stderr, __VA_ARGS__);                              \
     fprintf (stderr, "\n");                                     \
   }
-#endif // NZDX_LOG_ENABLE
+
+#endif // ZDX_LOG_DISABLE
 #endif // ZDX_UTIL_H_
