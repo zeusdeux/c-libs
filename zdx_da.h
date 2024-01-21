@@ -53,7 +53,7 @@
   })
 
 // Unsafe ops throw
-#define da_push__(da, els, reqd_cap, el_sz, suffix)                                                                          \
+#define da_push__(da, els, reqd_cap, el_sz)                                                                                  \
   ({                                                                                                                         \
     dbg_da("input:\t", (da));                                                                                                \
     DA_ASSERT((da) != NULL && "Cannot operate on NULL dyn arr container");                                                   \
@@ -77,11 +77,8 @@
       dbg("resized:\t\t\t\t\t| new capacity %zu", (da)->capacity);                                                           \
                                                                                                                              \
     }                                                                                                                        \
-    for(size_t  da_var(__LINE__, idx, suffix) = 0;                                                                           \
-        da_var(__LINE__, idx, suffix) < (reqd_cap);                                                                          \
-        da_var(__LINE__, idx, suffix)++)                                                                                     \
-      {                                                                                                                      \
-        (da)->items[(da)->length++] = (els)[da_var(__LINE__, idx, suffix)];                                                  \
+    for(size_t  i = 0; i < (reqd_cap); i++)  {                                                                               \
+        (da)->items[(da)->length++] = (els)[i];                                                                              \
       }                                                                                                                      \
                                                                                                                              \
     dbg_da("output:\t", da);                                                                                                 \
@@ -91,8 +88,7 @@
 #define da_push(da, ...) da_push__(da,                                                      \
                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),             \
                                   da_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})), \
-                                  da_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),   \
-                                  __COUNTER__)
+                                  da_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
 
 
 #define da_free(da) {                           \
