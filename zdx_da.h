@@ -75,11 +75,11 @@
                                                                                                                              \
       DA_ASSERT((da)->items && "Allocation failed");                                                                         \
       dbg("resized:\t\t\t\t\t| new capacity %zu", (da)->capacity);                                                           \
-                                                                                                                             \
     }                                                                                                                        \
+                                                                                                                             \
     for(size_t  i = 0; i < (reqd_cap); i++)  {                                                                               \
         (da)->items[(da)->length++] = (els)[i];                                                                              \
-      }                                                                                                                      \
+    }                                                                                                                        \
                                                                                                                              \
     dbg_da("output:\t", da);                                                                                                 \
     (da)->length;                                                                                                            \
