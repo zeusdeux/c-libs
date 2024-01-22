@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define zdx_first_arg(first, ...) (first)
+#define zdx_el_sz(arr) ((arr) ? sizeof((arr)[0]) : 0) // TODO(mudit): Can this lead to divide by zero? If so, what's the fix?
+#define zdx_arr_len(arr) ((arr) ? sizeof((arr)) / zdx_el_sz(arr) : 0)
+
 #define assertm(cond, ...)                                                                                \
   (cond) ?                                                                                                \
          ((void)0)                                                                                        \
@@ -43,11 +47,11 @@
   }
 
 #ifdef ZDX_TRACE_ENABLE
-#define dbg(...) {                                                      \
+#define dbg(...) do {                                                   \
     fprintf (stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__);    \
     fprintf (stderr, __VA_ARGS__);                                      \
     fprintf (stderr, "\n");                                             \
-  }
+  } while(0)
 #else
 #define dbg(...) {}
 #endif // ZDX_TRACE_ENABLE
@@ -74,6 +78,5 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
     fprintf (stderr, __VA_ARGS__);                              \
     fprintf (stderr, "\n");                                     \
   }
-
 #endif // ZDX_LOG_DISABLE
 #endif // ZDX_UTIL_H_

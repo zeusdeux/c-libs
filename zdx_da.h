@@ -26,6 +26,11 @@
 #ifndef ZDX_DA_H_
 #define ZDX_DA_H_
 
+#pragma GCC diagnostic error "-Wnonnull"
+#pragma GCC diagnostic error "-Wnull-dereference"
+#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
+#pragma GCC diagnostic ignored "-Wmacro-redefined"
+
 #include <assert.h>
 #include <stdlib.h>
 #include "./zdx_util.h"
@@ -33,12 +38,6 @@
 #define DA_ASSERT assert // can be defined by consumer to not throw and log for example
 #define DA_RESIZE_FACTOR 2 // double the dyn array capacity upon resize
 #define DA_MIN_CAPACITY 8 // hold 8 elements by default
-
-#define da_build_var_name(line, name, suffix) name ## _ ## line ## _ ## suffix
-#define da_var(line, name, suffix) da_build_var_name(line, name, suffix)
-
-#define da_el_sz(arr) ((arr) ? sizeof((arr)[0]) : 0) // TODO(mudit): Can this lead to divide by zero? If so, what's the fix?
-#define da_arr_len(arr) ((arr) ? sizeof((arr)) / da_el_sz(arr) : 0)
 
 #define dbg_da(label, da) dbg("%s length %zu\t\t\t| capacity %zu\t\t| items %p", \
                               label, (da)->length, (da)->capacity, (void *)(da)->items)
@@ -89,10 +88,10 @@
     (da)->length;                                                                                                             \
   })
 
-#define da_push(da, ...) da_push__(da,                                                        \
-                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),              \
-                                   da_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),  \
-                                   da_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
+#define da_push(da, ...) da_push__(da,                                                         \
+                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),               \
+                                   zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),  \
+                                   zdx_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
 
 
 #define da_free(da) {                           \

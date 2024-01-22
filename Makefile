@@ -1,8 +1,8 @@
-FLAGS = -std=c17 -Wall -Werror=nonnull -Werror=null-dereference -pedantic -O3
-TEST_FLAGS = $(FLAGS) -Wno-gnu-statement-expression-from-macro-expansion -Wno-macro-redefined
+FLAGS = -std=c17 -Wall -pedantic -O3
+TEST_FLAGS = $(FLAGS)
 
-DBG_FLAGS = -DZDX_TRACE_ENABLE -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror=nonnull -Werror=null-dereference
-DBG_TEST_FLAGS = $(DBG_FLAGS) -Wno-gnu-statement-expression-from-macro-expansion -Wno-macro-redefined
+DBG_FLAGS = -DZDX_TRACE_ENABLE -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated
+DBG_TEST_FLAGS = $(DBG_FLAGS)
 
 
 test_zdx_da:
