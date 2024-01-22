@@ -49,10 +49,29 @@ int main(void)
 {
   ReplHistory replHistory = {0};
   ReplHistory moreReplHistory = {0};
-
   ReplHistoryItem tempItem = { .input = "TEMP", .output = "ITEM" };
+
+  /* MAYBE WRITE TESTS FOR THESE USING DejaGnu: https://www.embecosm.com/appnotes/ean8/ean8-howto-dejagnu-1.0.pdf */
+  /* UNCOMMENT AND CHECK THE FOLLOWING THROW COMPILE ERRORS */
+  /* da_push(NULL, NULL); */
+  /* da_push(NULL, tempItem); */
+  /* da_push(&moreReplHistory, NULL); */
+  /* da_push(&moreReplHistory, tempItem, NULL); */
+  /* da_push(&moreReplHistory, NULL, tempItem); */
+  /* da_push(&moreReplHistory, *((ReplHistoryItem *)NULL), tempItem); // requires -Werror=null-dereference to catch during compile */
+
+  /* UNCOMMENT AND CHECK THE FOLLOWING THROW RUNTIME ASSERTION ERRORS */
+  /* ReplHistory *r = &moreReplHistory; */
+  /* ReplHistoryItem *ti = &tempItem; */
+  /* r = NULL; */
+  /* ti = NULL; */
+  /* da_push(r, tempItem); */
+  /* da_push(&moreReplHistory, *ti); // I have no idea how to catch this during compile or runtime. help. */
+  /* END */
+
   da_push(&moreReplHistory, tempItem);
   da_push(&moreReplHistory, tempItem);
+
   assertm(moreReplHistory.capacity == 2, "Expected: 2, Received: %zu", moreReplHistory.capacity);
 
   tempItem.input = "CHANGED";
