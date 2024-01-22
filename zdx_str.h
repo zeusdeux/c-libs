@@ -119,11 +119,12 @@ size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const
   return sb->length;
 }
 
-void sb_free(sb_t  sb[const static 1])
+void sb_free(sb_t sb[const static 1])
 {
   free((void *)sb->str);
   sb->str = NULL;
   sb->length = 0;
+  sb->capacity = 0;
 }
 
 #endif // ZDX_STR_IMPLEMENTATION
