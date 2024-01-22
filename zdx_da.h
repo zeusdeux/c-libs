@@ -37,8 +37,8 @@
 #define da_build_var_name(line, name, suffix) name ## _ ## line ## _ ## suffix
 #define da_var(line, name, suffix) da_build_var_name(line, name, suffix)
 
-#define da_el_sz(arr) sizeof((arr)[0])
-#define da_arr_len(arr) sizeof((arr))/da_el_sz(arr)
+#define da_el_sz(arr) ((arr) ? sizeof((arr)[0]) : 0) // TODO(mudit): Can this lead to divide by zero? If so, what's the fix?
+#define da_arr_len(arr) ((arr) ? sizeof((arr)) / da_el_sz(arr) : 0)
 
 #define dbg_da(label, da) dbg("%s length %zu\t\t\t| capacity %zu\t\t| items %p", \
                               label, (da)->length, (da)->capacity, (void *)(da)->items)
@@ -46,49 +46,53 @@
 // guarded as the macros below use statement expressions which only gcc and clang support
 #if __GNUC__ || __clang__
 // Unsafe ops throw
-#define da_pop(da)                                                      \
-  ({                                                                    \
-    DA_ASSERT((da)->length && "Cannot pop from empty container");       \
-    (da)->items[--((da)->length)];                                      \
+#define da_pop(da)                                                          \
+  ({                                                                        \
+    DA_ASSERT((da)->length && "[zdx_da] Cannot pop from empty container");  \
+    (da)->items[--((da)->length)];                                          \
   })
 
 // Unsafe ops throw
-#define da_push__(da, els, reqd_cap, el_sz)                                                                                  \
-  ({                                                                                                                         \
-    dbg_da("input:\t", (da));                                                                                                \
-    DA_ASSERT((da) != NULL && "Cannot operate on NULL dyn arr container");                                                   \
-    DA_ASSERT((!(da)->capacity && !(da)->items && !(da)->length) || ((da)->capacity && (da)->items)                          \
-              && "Invalid dyn arr container. Either all members must be zero or both capacity and items must be non-zero");  \
-                                                                                                                             \
-    dbg("input:\t element size %zu\t\t| required capacity %zu", el_sz, reqd_cap);                                            \
-                                                                                                                             \
-    if (((reqd_cap) + (da)->length) > (da)->capacity) {                                                                      \
-      if((da)->capacity <= 0) {                                                                                              \
-        (da)->capacity = DA_MIN_CAPACITY;                                                                                    \
-      }                                                                                                                      \
-      while((da)->capacity < ((reqd_cap) + (da)->length)) {                                                                  \
-        (da)->capacity *= DA_RESIZE_FACTOR;                                                                                  \
-      }                                                                                                                      \
-      (da)->items = (da)->items ?                                                                                            \
-        realloc((da)->items, (da)->capacity*sizeof(*(da)->items))                                                            \
-        : calloc((da)->capacity, (el_sz));                                                                                   \
-                                                                                                                             \
-      DA_ASSERT((da)->items && "Allocation failed");                                                                         \
-      dbg("resized:\t\t\t\t\t| new capacity %zu", (da)->capacity);                                                           \
-    }                                                                                                                        \
-                                                                                                                             \
-    for(size_t  i = 0; i < (reqd_cap); i++)  {                                                                               \
-        (da)->items[(da)->length++] = (els)[i];                                                                              \
-    }                                                                                                                        \
-                                                                                                                             \
-    dbg_da("output:\t", da);                                                                                                 \
-    (da)->length;                                                                                                            \
+#define da_push__(da, els, reqd_cap, el_sz)                                                                                   \
+  ({                                                                                                                          \
+    dbg_da("input:\t", (da));                                                                                                 \
+                                                                                                                              \
+    DA_ASSERT((da) != NULL && "[zdx_da] Cannot operate on NULL container");                                                   \
+    DA_ASSERT((!(da)->capacity && !(da)->items && !(da)->length) || ((da)->capacity && (da)->items)                           \
+              && "[zdx_da] Invalid container. Either all members must be zero or both capacity and items must be non-zero");  \
+    DA_ASSERT((els) != 0 && "[zdx_da] Pushing no elements is invalid");                                                       \
+    DA_ASSERT((reqd_cap) != 0 && "[zdx_da] Pushing no elements is invalid");                                                  \
+    DA_ASSERT((el_sz) !=0 && "[zdx_da] Pushing an element of size 0 is invalid");                                             \
+                                                                                                                              \
+    dbg("input:\t element size %zu\t\t| required capacity %zu", el_sz, reqd_cap);                                             \
+                                                                                                                              \
+    if (((reqd_cap) + (da)->length) > (da)->capacity) {                                                                       \
+      if((da)->capacity <= 0) {                                                                                               \
+        (da)->capacity = DA_MIN_CAPACITY;                                                                                     \
+      }                                                                                                                       \
+      while((da)->capacity < ((reqd_cap) + (da)->length)) {                                                                   \
+        (da)->capacity *= DA_RESIZE_FACTOR;                                                                                   \
+      }                                                                                                                       \
+      (da)->items = (da)->items ?                                                                                             \
+        realloc((da)->items, (da)->capacity*sizeof(*(da)->items))                                                             \
+        : calloc((da)->capacity, (el_sz));                                                                                    \
+                                                                                                                              \
+      DA_ASSERT((da)->items && "[zdx_da] Allocation failed");                                                                 \
+      dbg("resized:\t\t\t\t\t| new capacity %zu", (da)->capacity);                                                            \
+    }                                                                                                                         \
+                                                                                                                              \
+    for(size_t i = 0; i < (reqd_cap); i++)  {                                                                                 \
+        (da)->items[(da)->length++] = (els)[i];                                                                               \
+    }                                                                                                                         \
+                                                                                                                              \
+    dbg_da("output:\t", da);                                                                                                  \
+    (da)->length;                                                                                                             \
   })
 
-#define da_push(da, ...) da_push__(da,                                                      \
-                                  ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),             \
-                                  da_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})), \
-                                  da_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
+#define da_push(da, ...) da_push__(da,                                                        \
+                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),              \
+                                   da_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),  \
+                                   da_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
 
 
 #define da_free(da) {                           \
@@ -103,9 +107,9 @@
   } while(0);
 
 #else // if not (__GNUC__ || __clang__)
-#define da_push(da, ...) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
-#define da_pop(da, ...) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
-#define da_free(da) DA_ASSERT("zdx_da.h only works when compiled with gcc or clang")
+#define da_push(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
+#define da_pop(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
+#define da_free(da) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
 #endif // __GNUC__ || __clang__
 
 #endif // ZDX_DA_H_
