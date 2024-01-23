@@ -1,0 +1,10 @@
+*
+!.gitignore
+!Makefile
+!zdx_*.h
+!zdx_*.c
+!tests
+!tests/zdx_*.c
+!tests/zdx_*.h
+!*.md
+!LICENSE
