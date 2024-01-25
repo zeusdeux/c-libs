@@ -47,6 +47,12 @@ int main(void)
   /* sb_append(&sb, NULL); */
   /* sb_concat(NULL, NULL); */
   /* sb_append(NULL, NULL); */
+  /* sb_append_buf(NULL, NULL, 0); */
+  /* sb_append_buf(&sb, NULL, 0); */
+  /* sb_append_buf(NULL, (char []){'a'}, 0); */
+  /* sb_append_buf(NULL, (char []){'a'}, 1); */
+  /* sb_append_buf(NULL, NULL, 1); */
+  /* sb_append_buf(&sb, NULL, 1); */
   /* END */
 
   sb_append(&sb, "one", "two", "three");
@@ -59,7 +65,28 @@ int main(void)
   assertm(sb.capacity == 32, "Expected: 32, Received: %zu", sb.capacity);
   assertm(strcmp(sb.str, "onetwothreefourfivesix\n") == 0, "Expected: onetwothreefourfivesix\n, Received: %s", sb.str);
 
+  char buf_arr[] = {'a', 'b', 'c'};
+  sb_append_buf(&sb, buf_arr, 3);
+  assertm(sb.length == 26, "Expected: 26, Received: %zu", sb.length);
+  assertm(sb.capacity == 32, "Expected: 32, Received: %zu", sb.capacity);
+  assertm(strcmp(sb.str, "onetwothreefourfivesix\nabc") == 0, "Expected: onetwothreefourfivesix\\nabc, Received: %s", sb.str);
+
+  char *buf_ptr = buf_arr;
+  sb_append_buf(&sb, buf_ptr, 3);
+  assertm(sb.length == 29, "Expected: 29, Received: %zu", sb.length);
+  assertm(sb.capacity == 32, "Expected: 32, Received: %zu", sb.capacity);
+  assertm(strcmp(sb.str, "onetwothreefourfivesix\nabcabc") == 0, "Expected: onetwothreefourfivesix\\nabcabc, Received: %s", sb.str);
+
+  sb_append_buf(&sb, (char []){'1', '2', '3'}, 3);
+  assertm(sb.length == 32, "Expected: 32, Received: %zu", sb.length);
+  assertm(sb.capacity == 64, "Expected: 64, Received: %zu", sb.capacity);
+  assertm(strcmp(sb.str, "onetwothreefourfivesix\nabcabc123") == 0, "Expected: onetwothreefourfivesix\\nabcabc123, Received: %s", sb.str);
+
   sb_free(&sb);
+
+  assertm(sb.str == NULL, "After free(), items in string builder should be NULL ptr");
+  assertm(sb.length == 0, "After free(), length in string builder should be 0");
+  assertm(sb.capacity == 0, "After free(), capacity in string builder should be 0");
 
   log(L_INFO, "<zdx_str_test> All ok!\n");
 
