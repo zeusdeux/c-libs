@@ -55,7 +55,8 @@ int main(void)
   /* sb_append_buf(&sb, NULL, 1); */
   /* END */
 
-  sb_append(&sb, "one", "two", "three");
+  const char *f = "three";
+  sb_append(&sb, "one", "two", f);
   assertm(sb.length == 11, "Expected: 11, Received: %zu", sb.length);
   assertm(sb.capacity == 16, "Expected: 16, Received: %zu", sb.capacity);
   assertm(strcmp(sb.str, "onetwothree") == 0, "Expected: onetwothree, Received: %s", sb.str);

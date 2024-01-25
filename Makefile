@@ -34,6 +34,6 @@ test_zdx_str_dbg:
 test: test_zdx_da test_zdx_str
 
 clean:
-	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./tests/*.dSYM
+	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
 
 .PHONY: clean test_* test tags

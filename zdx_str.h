@@ -74,8 +74,6 @@ typedef struct {
                    (__VA_ARGS__) ? ((const char **)(__typeof__((__VA_ARGS__))[]){__VA_ARGS__}) : NULL);  \
   _Pragma("GCC diagnostic pop")
 
-//                      sb_t const* sb         , const size_t count,       const char **cstrs  // less strict pointer analogs
-size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const char *cstrs[static cstrs_count]);
 size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_size);
 // same as sb_free(sb_t *const sb) but the [static 1] enforces a pointer non-null check during compile
 void sb_free(sb_t sb[const static 1]);
@@ -83,8 +81,22 @@ void sb_free(sb_t sb[const static 1]);
 #endif // ZDX_STR_H_
 
 #ifdef ZDX_STR_IMPLEMENTATION
+
+static void sb_resize_(sb_t sb[const static 1], const size_t reqd_capacity)
+{
+  if (sb->capacity <= 0) {
+    sb->capacity = SB_MIN_CAPACITY;
+  }
+  while(sb->capacity < reqd_capacity) {
+    sb->capacity *= SB_RESIZE_FACTOR;
+  }
+  sb->str = realloc(sb->str, sb->capacity * sizeof(char));
+  dbg("++ resized (capacity %zu)", sb->capacity);
+}
+
 // Using sb_append_cstrs_ with non-c strings will lead to undefined behavior
 // Returns new length of cstring it has stored inside
+//                      sb_t const* sb         , const size_t count,       const char **cstrs  // less strict pointer analogs
 size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const char *cstrs[static cstrs_count])
 {
   SB_ASSERT(sb != NULL, "[zdx_str] Expected: valid string builder instance, Received: %p", (void *)sb);
@@ -100,14 +112,7 @@ size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const
     dbg("<< (%s, %zu)", cstr, cstr_len);
 
     if (reqd_capacity > sb->capacity) {
-      if (sb->capacity == 0) {
-        sb->capacity = SB_MIN_CAPACITY;
-      }
-      while(sb->capacity < reqd_capacity) {
-        sb->capacity *= SB_RESIZE_FACTOR;
-      }
-      sb->str = (char *)realloc((void *)sb->str, sb->capacity * (sizeof(char)));
-      dbg("++ resized (capacity %zu)", sb->capacity);
+      sb_resize_(sb, reqd_capacity);
     }
 
     size_t start = sb->length ? sb->length : 0;
@@ -137,14 +142,7 @@ size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_
   const size_t reqd_capacity = sb->length + buf_size + 1;
 
   if (reqd_capacity > sb->capacity) {
-    if (sb->capacity <= 0) {
-      sb->capacity = SB_MIN_CAPACITY;
-    }
-    while (sb->capacity < reqd_capacity) {
-      sb->capacity *= SB_RESIZE_FACTOR;
-    }
-    sb->str = realloc(sb->str, sb->capacity * sizeof(char));
-    dbg("++ resized (capacity %zu)", sb->capacity);
+    sb_resize_(sb, reqd_capacity);
   }
 
   for (size_t i = 0; i < buf_size; i++) {
