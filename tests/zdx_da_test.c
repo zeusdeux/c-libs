@@ -167,8 +167,8 @@ int main(void)
   print_repl_history(&replHistory);
 
   assertm(replHistory.items == NULL, "After free(), items in dyn array container should be NULL ptr");
-  assertm(replHistory.length == 0, "After free(), length in dyn array container should be NULL ptr");
-  assertm(replHistory.capacity == 0, "After free(), capacity in dyn array container should be NULL ptr");
+  assertm(replHistory.length == 0, "After free(), length in dyn array container should be 0");
+  assertm(replHistory.capacity == 0, "After free(), capacity in dyn array container should be 0");
 
   assertm(replHistory.i == 1090, "After free(), other members of dyn array container should still work as expected");
 

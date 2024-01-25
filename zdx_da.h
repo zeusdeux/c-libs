@@ -67,7 +67,7 @@
     DA_ASSERT((!(da)->capacity && !(da)->items && !(da)->length) || ((da)->capacity && (da)->items)                           \
               && "[zdx_da] Invalid container. Either all members must be zero or both capacity and items must be non-zero");  \
     DA_ASSERT((els) != NULL && "[zdx_da] Pushing no elements is invalid");                                                    \
-    DA_ASSERT((reqd_cap) != 0 && "[zdx_da] Pushing no elements is invalid");                                                  \
+    DA_ASSERT((reqd_cap) > 0 && "[zdx_da] Pushing no elements is invalid");                                                   \
                                                                                                                               \
     dbg(">>\t\t\t\t| required capacity %zu", reqd_cap);                                                                       \
                                                                                                                               \
