@@ -22,14 +22,8 @@
  * SOFTWARE.
  *
  */
-
 #ifndef ZDX_STR_H_
 #define ZDX_STR_H_
-
-#pragma GCC diagnostic error "-Wnonnull"
-#pragma GCC diagnostic error "-Wnull-dereference"
-#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
-#pragma GCC diagnostic ignored "-Wmacro-redefined"
 
 /**
  * This lib should contain string builder functionality (with interfaces for buf as well as cstr)
@@ -41,9 +35,14 @@
  * ALWAYS compile with -Werror=nonnull -Werror-null-dereference when using this library!!
  * Without that, some NULL checks just get optimized away in release builds.
  */
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include "./zdx_util.h"
+
+#ifndef SB_ASSERT
+#define SB_ASSERT assertm
+#endif // SB_ASSERT
 
 #ifndef SB_RESIZE_FACTOR
 #define SB_RESIZE_FACTOR 2
@@ -60,15 +59,23 @@ typedef struct {
 } sb_t;
 
 // Calling sb_concat with a non-c string array will lead to undefined behaviour
-#define sb_concat(sb, arr)                      \
-  sb_append_cstrs_((sb),                        \
-                   zdx_arr_len((arr)),          \
-                   (arr))
-#define sb_append(sb, ...)                                                     \
-  sb_append_cstrs_((sb),                                                       \
-                   zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),  \
-                   zdx_first_arg(__VA_ARGS__, "<FILLER>") ? ((const char **)(__typeof__((__VA_ARGS__))[]){__VA_ARGS__}) : NULL)
-//                                            ^ this <FILLER> is for when __VA_ARGS__ expands to only one argument and zdx_first_arg
+#define sb_concat(sb, arr)                              \
+  _Pragma("GCC diagnostic push")                        \
+  _Pragma("GCC diagnostic error \"-Wnonnull\"")         \
+  _Pragma("GCC diagnostic ignored \"-Wunused-value\"")  \
+  sb_append_cstrs_((sb),                                \
+                   (arr) ? zdx_arr_len(arr) : 0,        \
+                   (arr) ? (arr) : NULL);               \
+  _Pragma("GCC diagnostic pop")
+
+#define sb_append(sb, ...)                                              \
+  _Pragma("GCC diagnostic push")                                        \
+  _Pragma("GCC diagnostic error \"-Wnonnull\"")                         \
+  _Pragma("GCC diagnostic ignored \"-Wunused-value\"")                  \
+  sb_append_cstrs_((sb),                                                \
+                   (__VA_ARGS__) ? zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})) : 0, \
+                   (__VA_ARGS__) ? ((const char **)(__typeof__((__VA_ARGS__))[]){__VA_ARGS__}) : NULL); \
+  _Pragma("GCC diagnostic pop")
 
 //                    sb_t const* sb         , const size_t count, const char **cstrs  // less strict analogs in pointer language
 size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const char *cstrs[static cstrs_count]);
@@ -83,9 +90,9 @@ void sb_free(sb_t sb[const static 1]);
 // Returns new length of cstring it has stored inside
 size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const char *cstrs[static cstrs_count])
 {
-  assertm(sb != NULL, "[zdx_str] Expected: valid string builder instance, Received: %p", (void *)sb);
-  assertm(cstrs_count > 0, "[zdx_str] Expected: number of cstrings to insert to be > 0, Received: %zu", cstrs_count);
-  assertm(cstrs != NULL, "[zdx_str] Expected: array of cstring to insert to be non-NULL, Received: %p", (void *)cstrs);
+  SB_ASSERT(sb != NULL, "[zdx_str] Expected: valid string builder instance, Received: %p", (void *)sb);
+  SB_ASSERT(cstrs_count > 0, "[zdx_str] Expected: number of cstrings to insert to be > 0, Received: %zu", cstrs_count);
+  SB_ASSERT(cstrs != NULL, "[zdx_str] Expected: array of cstring to insert to be non-NULL, Received: %p", (void *)cstrs);
 
   for (size_t i = 0; i < cstrs_count; i++) {
     const char *cstr = cstrs[i];
@@ -126,5 +133,4 @@ void sb_free(sb_t sb[const static 1])
   sb->length = 0;
   sb->capacity = 0;
 }
-
 #endif // ZDX_STR_IMPLEMENTATION

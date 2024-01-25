@@ -26,44 +26,50 @@
 #ifndef ZDX_DA_H_
 #define ZDX_DA_H_
 
-#pragma GCC diagnostic error "-Wnonnull"
-#pragma GCC diagnostic error "-Wnull-dereference"
-#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
-#pragma GCC diagnostic ignored "-Wmacro-redefined"
-
 #include <assert.h>
 #include <stdlib.h>
 #include "./zdx_util.h"
 
+#ifndef DA_ASSERT
 #define DA_ASSERT assert // can be defined by consumer to not throw and log for example
+#endif // DA_ASSERT
+
+#ifndef DA_RESIZE_FACTOR
 #define DA_RESIZE_FACTOR 2 // double the dyn array capacity upon resize
+#endif // DA_RESIZE_FACTOR
+
+#ifndef DA_MIN_CAPACITY
 #define DA_MIN_CAPACITY 8 // hold 8 elements by default
+#endif // DA_MIN_CAPACITY
 
 #define dbg_da(label, da) dbg("%s length %zu\t\t\t| capacity %zu\t\t| items %p", \
-                              label, (da)->length, (da)->capacity, (void *)(da)->items)
+                              (label), (da)->length, (da)->capacity, (void *)(da)->items)
 
 // guarded as the macros below use statement expressions which only gcc and clang support
 #if __GNUC__ || __clang__
 // Unsafe ops throw
-#define da_pop(da)                                                          \
-  ({                                                                        \
-    DA_ASSERT((da)->length && "[zdx_da] Cannot pop from empty container");  \
-    (da)->items[--((da)->length)];                                          \
-  })
+#define da_pop(da)                                                                       \
+  _Pragma("GCC diagnostic push")                                                         \
+  _Pragma("GCC diagnostic ignored \"-Wgnu-statement-expression-from-macro-expansion\"")  \
+  ({                                                                                     \
+    DA_ASSERT((da)->length && "[zdx_da] Cannot pop from empty container");               \
+    (da)->items[--((da)->length)];                                                       \
+  })                                                                                     \
+  _Pragma("GCC diagnostic pop")
 
 // Unsafe ops throw
-#define da_push__(da, els, reqd_cap, el_sz)                                                                                   \
+#define da_push_(da, els, reqd_cap)                                                                                           \
+  _Pragma("GCC diagnostic push")                                                                                              \
+  _Pragma("GCC diagnostic ignored \"-Wgnu-statement-expression-from-macro-expansion\"")                                       \
   ({                                                                                                                          \
-    dbg_da("input:\t", (da));                                                                                                 \
-                                                                                                                              \
+    dbg_da(">>", da);                                                                                                         \
     DA_ASSERT((da) != NULL && "[zdx_da] Cannot operate on NULL container");                                                   \
     DA_ASSERT((!(da)->capacity && !(da)->items && !(da)->length) || ((da)->capacity && (da)->items)                           \
               && "[zdx_da] Invalid container. Either all members must be zero or both capacity and items must be non-zero");  \
-    DA_ASSERT((els) != 0 && "[zdx_da] Pushing no elements is invalid");                                                       \
+    DA_ASSERT((els) != NULL && "[zdx_da] Pushing no elements is invalid");                                                    \
     DA_ASSERT((reqd_cap) != 0 && "[zdx_da] Pushing no elements is invalid");                                                  \
-    DA_ASSERT((el_sz) !=0 && "[zdx_da] Pushing an element of size 0 is invalid");                                             \
                                                                                                                               \
-    dbg("input:\t element size %zu\t\t| required capacity %zu", el_sz, reqd_cap);                                             \
+    dbg(">>\t\t\t\t| required capacity %zu", reqd_cap);                                                                       \
                                                                                                                               \
     if (((reqd_cap) + (da)->length) > (da)->capacity) {                                                                       \
       if((da)->capacity <= 0) {                                                                                               \
@@ -72,39 +78,35 @@
       while((da)->capacity < ((reqd_cap) + (da)->length)) {                                                                   \
         (da)->capacity *= DA_RESIZE_FACTOR;                                                                                   \
       }                                                                                                                       \
-      (da)->items = (da)->items ?                                                                                             \
-        realloc((da)->items, (da)->capacity*sizeof(*(da)->items))                                                             \
-        : calloc((da)->capacity, (el_sz));                                                                                    \
-                                                                                                                              \
+      (da)->items = realloc((da)->items, (da)->capacity*sizeof(*(da)->items));                                                \
       DA_ASSERT((da)->items && "[zdx_da] Allocation failed");                                                                 \
-      dbg("resized:\t\t\t\t\t| new capacity %zu", (da)->capacity);                                                            \
+      dbg("++ resized\t\t\t| new capacity %zu", (da)->capacity);                                                              \
     }                                                                                                                         \
                                                                                                                               \
     for(size_t i = 0; i < (reqd_cap); i++)  {                                                                                 \
-        (da)->items[(da)->length++] = (els)[i];                                                                               \
+      (da)->items[(da)->length++] = (els)[i];                                                                                 \
     }                                                                                                                         \
                                                                                                                               \
-    dbg_da("output:\t", da);                                                                                                  \
+    dbg_da("<<", da);                                                                                                         \
     (da)->length;                                                                                                             \
-  })
+  })                                                                                                                          \
+  _Pragma("GCC diagnostic pop")
 
-#define da_push(da, ...) da_push__(da,                                                         \
-                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),               \
-                                   zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})),  \
-                                   zdx_el_sz(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})))
+#define da_push(da, ...) da_push_(da,                                            \
+                                  ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),  \
+                                  zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})));
 
-
-#define da_free(da) {                           \
-    dbg_da("input:\t", (da));                   \
-                                                \
-    free((da)->items);                          \
-    (da)->length = 0;                           \
-    (da)->capacity = 0;                         \
-    (da)->items = NULL;                         \
-                                                \
-    dbg_da("output:\t", (da));                  \
+#define da_free(da)      \
+  do {                   \
+    dbg_da(">>", da);    \
+                         \
+    free((da)->items);   \
+    (da)->length = 0;    \
+    (da)->capacity = 0;  \
+    (da)->items = NULL;  \
+                         \
+    dbg_da("<<", da);    \
   } while(0);
-
 #else // if not (__GNUC__ || __clang__)
 #define da_push(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
 #define da_pop(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")

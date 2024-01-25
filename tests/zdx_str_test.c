@@ -61,8 +61,7 @@ int main(void)
 
   sb_free(&sb);
 
-  /* assertm(0, "Nope"); */
-
   log(L_INFO, "<zdx_str_test> All ok!\n");
+
   return 0;
 }

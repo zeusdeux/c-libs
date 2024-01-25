@@ -29,9 +29,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Arg extraction macros
+#define zdx_last_arg(...) (__VA_ARGS__)
 #define zdx_first_arg(first, ...) (first)
-#define zdx_el_sz(arr) ((arr) ? sizeof((arr)[0]) : 0) // TODO(mudit): Can this lead to divide by zero? If so, what's the fix?
-#define zdx_arr_len(arr) ((arr) ? sizeof((arr)) / zdx_el_sz(arr) : 0)
+
+// Array macros. Check for false-y values of (arr) BEFORE calling these. Use zdx_truthy() for e.g.
+#define zdx_el_sz(arr) sizeof((arr)[0])
+#define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
 #define assertm(cond, ...)                                                                                \
   (cond) ?                                                                                                \
@@ -41,17 +45,17 @@
           fprintf(stderr, "\n"),                                                                          \
           abort())
 
-#define bail(...) {                             \
+#define bail(...) do {                          \
     dbg(__VA_ARGS__);                           \
     exit(1);                                    \
-  }
+  } while(0);
 
 #ifdef ZDX_TRACE_ENABLE
 #define dbg(...) do {                                                   \
     fprintf (stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__);    \
     fprintf (stderr, __VA_ARGS__);                                      \
     fprintf (stderr, "\n");                                             \
-  } while(0)
+  } while(0);
 #else
 #define dbg(...) {}
 #endif // ZDX_TRACE_ENABLE
@@ -72,11 +76,11 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
   "INFO"
 };
 
-#define log(level, ...) {                                       \
+#define log(level, ...) do {                                    \
     fprintf (stderr, "%s:%d: ", __FILE__, __LINE__);            \
     fprintf (stderr, "[%s] ", ZDX_LOG_LEVEL_STR[level]);        \
     fprintf (stderr, __VA_ARGS__);                              \
     fprintf (stderr, "\n");                                     \
-  }
+  } while(0);
 #endif // ZDX_LOG_DISABLE
 #endif // ZDX_UTIL_H_

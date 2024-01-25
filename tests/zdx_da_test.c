@@ -17,6 +17,8 @@ typedef struct {
   ReplHistoryItem *items;
 } ReplHistory;
 
+#pragma GCC diagnostic ignored "-Wmacro-redefined"
+
 // Overridden for ease of asserting on .capacity member which depends on these #defines
 #define DA_RESIZE_FACTOR 2
 #define DA_MIN_CAPACITY 1
@@ -66,7 +68,10 @@ int main(void)
   /* r = NULL; */
   /* ti = NULL; */
   /* da_push(r, tempItem); */
-  /* da_push(&moreReplHistory, *ti); // I have no idea how to catch this during compile or runtime. help. */
+  // I have no idea how to catch this during compile or runtime when
+  // compiled using -O3 as it seems to be removed by the compiler.
+  // Segfaults in debug build though.
+  /* da_push(&moreReplHistory, *ti); */
   /* END */
 
   da_push(&moreReplHistory, tempItem);
