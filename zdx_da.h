@@ -34,6 +34,15 @@
 #define DA_ASSERT assert // can be defined by consumer to not throw and log for example
 #endif // DA_ASSERT
 
+#ifndef DA_REALLOC
+#define DA_REALLOC realloc
+#endif // DA_REALLOC
+
+#ifndef DA_FREE
+#define DA_FREE free
+#endif // DA_FREE
+
+
 #ifndef DA_RESIZE_FACTOR
 #define DA_RESIZE_FACTOR 2 // double the dyn array capacity upon resize
 #endif // DA_RESIZE_FACTOR
@@ -78,7 +87,7 @@
       while((da)->capacity < ((reqd_cap) + (da)->length)) {                                                                   \
         (da)->capacity *= DA_RESIZE_FACTOR;                                                                                   \
       }                                                                                                                       \
-      (da)->items = realloc((da)->items, (da)->capacity*sizeof(*(da)->items));                                                \
+      (da)->items = DA_REALLOC((da)->items, (da)->capacity*sizeof(*(da)->items));                                             \
       DA_ASSERT((da)->items && "[zdx_da] Allocation failed");                                                                 \
       dbg("++ resized\t\t\t| new capacity %zu", (da)->capacity);                                                              \
     }                                                                                                                         \
@@ -96,21 +105,21 @@
                                   ((__typeof__((__VA_ARGS__))[]){__VA_ARGS__}),  \
                                   zdx_arr_len(((__typeof__((__VA_ARGS__))[]){__VA_ARGS__})));
 
-#define da_free(da)      \
-  do {                   \
-    dbg_da(">>", da);    \
-                         \
-    free((da)->items);   \
-    (da)->length = 0;    \
-    (da)->capacity = 0;  \
-    (da)->items = NULL;  \
-                         \
-    dbg_da("<<", da);    \
+#define da_deinit(da)                           \
+  do {                                          \
+    dbg_da(">>", da);                           \
+                                                \
+    DA_FREE((da)->items);                       \
+    (da)->length = 0;                           \
+    (da)->capacity = 0;                         \
+    (da)->items = NULL;                         \
+                                                \
+    dbg_da("<<", da);                           \
   } while(0);
 #else // if not (__GNUC__ || __clang__)
 #define da_push(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
 #define da_pop(da, ...) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
-#define da_free(da) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
+#define da_deinit(da) DA_ASSERT("[zdx_da] zdx_da.h only works when compiled with gcc or clang")
 #endif // __GNUC__ || __clang__
 
 #endif // ZDX_DA_H_

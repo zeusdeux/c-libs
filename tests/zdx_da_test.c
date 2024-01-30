@@ -85,14 +85,14 @@ int main(void)
   assertm(strcmp(moreReplHistory.items[1].input, "CHANGED AS WELL") == 0, "Expected: \"CHANGED AS WELL\", Received: \"%s\"", tempItem.input);
   assertm(tempItem.input != moreReplHistory.items[1].input, "Expected: true, Received: false");
   assertm(moreReplHistory.items[0].input != moreReplHistory.items[1].input, "Expected: true, Received: false");
-  da_free(&moreReplHistory);
+  da_deinit(&moreReplHistory);
 
   size_t idx = da_push(&replHistory,
-          (ReplHistoryItem){ .input = "FIRST", .output = "ELEMENT" },
-          (ReplHistoryItem){ .input = "console.log(\"omg\")", .output = "omg" },
-          (ReplHistoryItem){ .input = "sin(90)", .output = "1" },
-          (ReplHistoryItem){ .input = "typeof []", .output = "array" }
-          );
+                       (ReplHistoryItem){ .input = "FIRST", .output = "ELEMENT" },
+                       (ReplHistoryItem){ .input = "console.log(\"omg\")", .output = "omg" },
+                       (ReplHistoryItem){ .input = "sin(90)", .output = "1" },
+                       (ReplHistoryItem){ .input = "typeof []", .output = "array" }
+                       );
 
   assertm(replHistory.capacity == 4, "dyn arr should grow to accomodate no., of items being pushed");
   assertm(replHistory.length == 4, "length should match no., of items pushed");
@@ -162,7 +162,7 @@ int main(void)
 
   print_repl_history(&replHistory);
 
-  da_free(&replHistory);
+  da_deinit(&replHistory);
 
   print_repl_history(&replHistory);
 
