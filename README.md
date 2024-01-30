@@ -97,15 +97,15 @@ typedef struct {
   size_t len = da_push(&container, (Item){ .member1 = 80 }, (Item){ .member1 = 100, .member2.nested_member1 = "Hello!" });
   assert(len == 2 == container.length);
   ```
-- `da_pop(&container)` - pops the last element in `container.items` and returns it
+  - `da_pop(&container)` - pops the last element in `container.items` and returns it
   ```c
   Item i = da_pop(&container);
   assert(i.member1 == 100);
   assert(container.length == 1);
   ```
-- `da_free(&container)` - `free()`s `container.items`
+  - `da_deinit(&container)` - `free()`s `container.items`
   ```c
-  da_free(&container);
+  da_deinit(&container);
   assert(container.length == 0);
   assert(container.capacity == 0);
   assert(container.items == NULL);

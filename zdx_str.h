@@ -37,10 +37,21 @@
  */
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include "./zdx_util.h"
 
 #pragma GCC diagnostic error "-Wnonnull"
+
+// ---- STRING BUILDER ----
+
+#ifndef SB_REALLOC
+#define SB_REALLOC realloc
+#endif // SB_REALLOC
+
+#ifndef SB_FREE
+#define SB_FREE free
+#endif // SB_FREE
 
 #ifndef SB_ASSERT
 #define SB_ASSERT assertm
@@ -54,7 +65,7 @@
 #define SB_MIN_CAPACITY 16
 #endif
 
-typedef struct {
+typedef struct string_builder {
   size_t capacity;
   size_t length;
   char *str;
@@ -76,7 +87,7 @@ typedef struct {
 
 size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_size);
 // same as sb_free(sb_t *const sb) but the [static 1] enforces a pointer non-null check during compile
-void sb_free(sb_t sb[const static 1]);
+void sb_deinit(sb_t sb[const static 1]);
 
 #endif // ZDX_STR_H_
 
@@ -90,7 +101,8 @@ static void sb_resize_(sb_t sb[const static 1], const size_t reqd_capacity)
   while(sb->capacity < reqd_capacity) {
     sb->capacity *= SB_RESIZE_FACTOR;
   }
-  sb->str = realloc(sb->str, sb->capacity * sizeof(char));
+  sb->str = SB_REALLOC(sb->str, sb->capacity * sizeof(char));
+  SB_ASSERT(sb->str != NULL, "[zdx str] string builder resize allocation failed");
   dbg("++ resized (capacity %zu)", sb->capacity);
 }
 
@@ -159,9 +171,9 @@ size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_
   return sb->length;
 }
 
-void sb_free(sb_t sb[const static 1])
+void sb_deinit(sb_t sb[const static 1])
 {
-  free((void *)sb->str);
+  SB_FREE((void *)sb->str);
   sb->str = NULL;
   sb->length = 0;
   sb->capacity = 0;

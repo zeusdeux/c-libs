@@ -83,7 +83,7 @@ int main(void)
   assertm(sb.capacity == 64, "Expected: 64, Received: %zu", sb.capacity);
   assertm(strcmp(sb.str, "onetwothreefourfivesix\nabcabc123") == 0, "Expected: onetwothreefourfivesix\\nabcabc123, Received: %s", sb.str);
 
-  sb_free(&sb);
+  sb_deinit(&sb);
 
   assertm(sb.str == NULL, "After free(), items in string builder should be NULL ptr");
   assertm(sb.length == 0, "After free(), length in string builder should be 0");
