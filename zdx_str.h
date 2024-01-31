@@ -120,11 +120,11 @@ typedef struct gap_buffer {
 
 void gb_init(gb_t gb[const static 1]);
 void gb_deinit(gb_t gb[const static 1]);
-void gb_move_cursor(gb_t gb[const static 1], const uint64_t pos);
+void gb_move_cursor(gb_t gb[const static 1], const int64_t pos);
 void gb_insert_char(gb_t gb[const static 1], const char c);
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1], const size_t cstr_len);
 void gb_delete_chars(gb_t gb[const static 1], const uint64_t count); // count +ve -> backspace, count -ve -> delete
-const char *gb_buf_as_cstr(const gb_t gb[const static 1]);
+char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 
 #endif // ZDX_STR_H_
 
@@ -223,13 +223,44 @@ void sb_deinit(sb_t sb[const static 1])
 
 #define gb_dbg(label, gb)                                               \
   do {                                                                  \
-    const char *buf_as_cstr = gb_buf_as_cstr(gb);                       \
+    const char *buf_as_cstr = gb_buf_as_dbg_cstr(gb);                       \
     dbg("%s buf %s \t| length %zu \t| gap start %zu \t| gap end %zu",   \
         label, buf_as_cstr, gb->length, gb->gap_start_, gb->gap_end_);  \
     GB_FREE((void *)buf_as_cstr);                                       \
   } while(0)
 
 #define gb_len_with_gap(gb) (((gb)->length + ((gb)->gap_end_ - (gb)->gap_start_)) ? ((gb)->length + ((gb)->gap_end_ - (gb)->gap_start_) + 1) : 0)
+
+static const char *gb_buf_as_dbg_cstr(const gb_t gb[const static 1])
+{
+  GB_ASSERT(gb != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", (void *)gb);
+
+  // abc{....}cbde
+  // 012334566789a
+  // len = 7, start = 3, end = 6
+  // buf_len_with_gap = 7 + (6 - 3) + 1
+  size_t buf_len_with_gap = gb_len_with_gap(gb);
+
+  if (buf_len_with_gap) {
+    buf_len_with_gap += 1;
+  }
+
+  char *str = GB_REALLOC(NULL, (buf_len_with_gap + 1) * sizeof(char));
+  GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
+
+  for (size_t i = 0; i < buf_len_with_gap; i++) {
+    if (i >= gb->gap_start_ && i <= gb->gap_end_) {
+      str[i] = '.';
+    } else {
+      str[i] = gb->buf[i];
+    }
+  }
+
+  str[buf_len_with_gap] = '\0';
+
+  return str;
+}
+
 
 static void gb_resize_gap_(gb_t gb[const static 1], size_t gap_size)
 {
@@ -274,39 +305,36 @@ static void gb_resize_gap_(gb_t gb[const static 1], size_t gap_size)
   dbg("++ resized \t| size %zu \t| gap start %zu \t| gap end %zu", new_size, gb->gap_start_, gb->gap_end_);
 
   gb_dbg("<<", gb);
+
   // done
   return;
 }
 
-const char *gb_buf_as_cstr(const gb_t gb[const static 1])
+char *gb_buf_as_cstr(const gb_t gb[const static 1])
 {
+  gb_dbg(">>", gb);
   GB_ASSERT(gb != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", (void *)gb);
 
-  // abc{....}cbde
-  // 012334566789a
-  // len = 7, start = 3, end = 6
-  // buf_len_with_gap = 7 + (6 - 3) + 1x
-  size_t buf_len_with_gap = gb_len_with_gap(gb);
+  char *str = GB_REALLOC(NULL, gb->length * sizeof(char));
+  GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
 
+  size_t buf_len_with_gap = gb_len_with_gap(gb);
   if (buf_len_with_gap) {
     buf_len_with_gap += 1;
   }
 
-  char *str = GB_REALLOC(NULL, (buf_len_with_gap + 1) * sizeof(char));
-  GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
-
   for (size_t i = 0; i < buf_len_with_gap; i++) {
-    if (i >= gb->gap_start_ && i <= gb->gap_end_) {
-      str[i] = '.';
-    } else {
+    if (i < gb->gap_start_ || i > gb->gap_end_) {
       str[i] = gb->buf[i];
     }
   }
 
-  str[buf_len_with_gap] = '\0';
+  str[gb->length] = '\0';
 
+  gb_dbg("<<", gb);
   return str;
 }
+
 
 void gb_init(gb_t gb[const static 1])
 {
@@ -339,7 +367,7 @@ void gb_deinit(gb_t gb[const static 1])
   return;
 }
 
-void gb_move_cursor(gb_t gb[const static 1], const uint64_t pos)
+void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
 {
   (void) gb;
   (void) pos;

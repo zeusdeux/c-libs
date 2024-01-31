@@ -1,6 +1,8 @@
 #include <stdio.h>
 #define SB_MIN_CAPACITY 1
 #define SB_RESIZE_FACTOR 2
+#define GB_INIT_LENGTH 1
+#define GB_MIN_GAP_SIZE 2
 #define ZDX_STR_IMPLEMENTATION
 #include "../zdx_str.h"
 #include "../zdx_util.h"
@@ -88,6 +90,67 @@ int main(void)
   assertm(sb.str == NULL, "After free(), items in string builder should be NULL ptr");
   assertm(sb.length == 0, "After free(), length in string builder should be 0");
   assertm(sb.capacity == 0, "After free(), capacity in string builder should be 0");
+
+
+  // ---- GAP BUFFER TESTS ----
+  gb_t gb = {0};
+
+  gb_init(&gb);
+  char *buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 0, "Expected: 0, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
+
+  /* gb_move_cursor(0); */
+  /* assertm(gb.gap_start_ == 0, "Expected: 0, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_start_, gb.capacity_); */
+
+  gb_insert_char(&gb, 'a');
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "a") == 0, "Expected: a, Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 1, "Expected: 1, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 1, "Expected: 1, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
+
+  gb_insert_char(&gb, 'b');
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "ab") == 0, "Expected: a, Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 2, "Expected: 2, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 2, "Expected: 2, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
+
+  gb_insert_char(&gb, 'c');
+  gb_insert_char(&gb, 'd');
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcd") == 0, "Expected: a, Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 4, "Expected: 4, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 4, "Expected: 4, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 3, "Expected: 3, Received: %zu", gb.gap_end_);
+
+  /* gb_insert_cstr("bcde"); */
+  /* assertm(gb.gap_start_ == 5, "Expected: 5, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_end_, gb.capacity_); */
+
+  /* gb_delete_chars(0); // should be no op */
+  /* assertm(strcmp(gb.buf, "abcde") == 0, "Expected: abcde, Received: %s", gb.buf); */
+  /* assertm(gb.length == 5, "Expected: 5, Received: %zu", gb.length); */
+  /* assertm(gb.size == 6, "Expected: 6, Received: %lld", gb.size); // includes \0 */
+  /* assertm(gb.gap_start_ == 5, "Expected: 5, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_end_, gb.capacity_); */
+
+  /* gb_delete_chars(2); */
+  /* assertm(strcmp(gb.buf, "abc") == 0, "Expected: abcde, Received: %s", gb.buf); */
+  /* assertm(gb.length == 3, "Expected: 3, Received: %zu", gb.length); */
+  /* assertm(gb.size == 4, "Expected: 4, Received: %lld", gb.size); // includes \0 */
+  /* assertm(gb.gap_start_ == 3, "Expected: 3, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_start_, gb.capacity_); */
+
+  gb_deinit(&gb);
 
   log(L_INFO, "<zdx_str_test> All ok!\n");
 
