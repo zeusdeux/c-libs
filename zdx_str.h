@@ -274,32 +274,40 @@ static void gb_resize_gap_(gb_t gb[const static 1], size_t gap_size)
     gap_size = GB_MIN_GAP_SIZE;
   }
 
-  // abc{}cbde
-  // resize gb->buf to include GB_MIN_GAP_SIZE
-  const size_t new_size = gb->length + gap_size;
+  const size_t curr_gap_len = gb->gap_start_ > gb->gap_end_ ? 0 : gb->gap_end_ - gb->gap_start_ + 1;
+  const size_t new_size = gb->length + curr_gap_len + gap_size;
+
   gb->buf = GB_REALLOC(gb->buf, new_size);
   GB_ASSERT(gb->buf != NULL, "[zdx str] Allocation failed for resizing gb->buf to expand gap");
 
+  // { -> gap start marker
+  // } -> gap end marker
+  //
   // Example 1:
-  // abc{}cbde....
-  // 0123345678
-  // len = 7
-  // dst = buf + gap_start
-  // src = buf + (gap_end + (len - gap_start) + 1)
+  // len = 7, gap size = 4, gap start = 3, gap end = 2 (aka gap is empty as start has crossed end)
+  // abc}{cbde....
+  // 012233456789a
+  //
+  // abc}{cbdecbde
+  // 012233456789a
+  //
   // abc{....}cbde
   // 012334566789a
-  //
+
   // Example 2:
+  // len = 8, gap size = 4, gap start = 3, gap end = 4 (aka 2 spots left in gap)
   // abc{..}12345....
-  // 012334456789a
-  // len = 8
-  // dst = buf + gap_start
-  // src = buf + (gap_end + (len - gap_start) + 1)
+  // 012334456789abcd
+  //
+  // abc{..}123412345
+  // 012334456789abcd
+  //
   // abc{......}12345
-  // 0123344567789abc
-  void *dst = (void *)(gb->buf + gb->gap_start_);
-  const void *src = (void *)(gb->buf + (gb->gap_end_ + (gb->length - gb->gap_start_) + 1));
-  memmove(dst, src, GB_MIN_GAP_SIZE);
+  // 012334567889abcd
+  const void *src = (void *)(gb->buf + gb->gap_end_ + 1);
+  void *dst = (void *)(gb->buf + gb->gap_end_ + gap_size + 1);
+  const size_t n = gb->length - gb->gap_start_;
+  memmove(dst, src, n);
   gb->gap_end_ += gap_size;
 
   dbg("++ resized \t| size %zu \t| gap start %zu \t| gap end %zu", new_size, gb->gap_start_, gb->gap_end_);
