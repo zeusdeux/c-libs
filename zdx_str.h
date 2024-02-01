@@ -277,7 +277,7 @@ static void gb_resize_gap_(gb_t gb[const static 1], size_t gap_size)
   const size_t curr_gap_len = gb->gap_start_ > gb->gap_end_ ? 0 : gb->gap_end_ - gb->gap_start_ + 1;
   const size_t new_size = gb->length + curr_gap_len + gap_size;
 
-  gb->buf = GB_REALLOC(gb->buf, new_size);
+  gb->buf = GB_REALLOC(gb->buf, new_size * sizeof(char));
   GB_ASSERT(gb->buf != NULL, "[zdx str] Allocation failed for resizing gb->buf to expand gap");
 
   // { -> gap start marker
