@@ -377,8 +377,55 @@ void gb_deinit(gb_t gb[const static 1])
 
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
 {
-  (void) gb;
-  (void) pos;
+  gb_dbg(">>", gb);
+  dbg(">> move to pos %lld", pos);
+
+  GB_ASSERT(gb != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", (void *)gb);
+
+  const int64_t signed_new_pos = gb->gap_start_ + pos;
+  GB_ASSERT(0 <= signed_new_pos,
+            "[zdx str] Expected: New cursor position to be positive, Received: %lld",
+            signed_new_pos);
+  // Safely treat as size_t which is unsigned due to assertion above and size_t always being
+  // atleast as wide as uint64_t
+  // Also, limit by gb->length to prevent moving cursor outside of string held in gb->buf
+  const size_t new_pos = (size_t) signed_new_pos > gb->length ? gb->length - 1 : signed_new_pos;
+
+  const size_t len_to_move = llabs(pos);
+  const size_t curr_gap_len = gb->gap_start_ > gb->gap_end_ ? 0 : gb->gap_end_ - gb->gap_start_ + 1;
+
+  // pos -2, new_pos = 4
+  // abcde| -> gap start = 6, gap end = 5
+  // 123456
+  // abc|de -> gap start = 4, gap end = 3
+  // 123456
+  if (gb->gap_start_ > gb->gap_end_) {
+    // gap is empty and we need to resize on next insert so no memmove needed
+    // instead just set gap start and end to new values
+    gb->gap_start_ = new_pos;
+    gb->gap_end_ += pos; // pos can be -ve which is why this works
+    gb_dbg("<<", gb);
+    return;
+  }
+
+  // pos = -3, new_pos = 3, len_to_move = 3
+  // abcde|.. -> gap start = 6, gap end = 7
+  // 12345667
+  // ab|..cde -> gap start = 3, gap end = 4
+  // 12334567
+  if (new_pos < gb->gap_start_) {
+    const void *src = (void *)(gb->buf + new_pos);
+    void *dst = (void *)(gb->buf + new_pos + curr_gap_len);
+    memmove(dst, src, len_to_move);
+
+    gb->gap_start_ = new_pos;
+    gb->gap_end_ = new_pos + curr_gap_len - 1;
+
+  } else if (new_pos > gb->gap_start_) {
+  }
+
+  gb_dbg("<<", gb);
+  return;
 }
 
 void gb_insert_char(gb_t gb[const static 1], const char c)
