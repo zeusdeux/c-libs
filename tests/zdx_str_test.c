@@ -19,8 +19,8 @@ int main(void)
   /* printf("omg %s %d\n", a, i[0]); */
 
   /* typedef struct { */
-    /* int i; */
-    /* float j; */
+  /* int i; */
+  /* float j; */
   /* } omg_t; */
 
   /* const omg_t x = {.i=10, .j=11.0f}; */
@@ -29,6 +29,8 @@ int main(void)
   /* printf("x %#x %d %d y %#x\n", x, (*(int *)&x) == x.i, (*((float *)&x + 1)) == x.j,  y); */
   /* x = y; */
   /* x.i = 20; */
+
+  // ---- START STRING BUILDER TESTS ----
 
   sb_t sb = {0};
 
@@ -91,66 +93,157 @@ int main(void)
   assertm(sb.length == 0, "After free(), length in string builder should be 0");
   assertm(sb.capacity == 0, "After free(), capacity in string builder should be 0");
 
+  // ---- END STRING BUILDER TESTS ----
 
-  // ---- GAP BUFFER TESTS ----
+  // ---- START GAP BUFFER TESTS ----
+
   gb_t gb = {0};
 
   gb_init(&gb);
+
   char *buf_cstr = gb_buf_as_cstr(&gb);
   assertm(strcmp(buf_cstr, "") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
-  assertm(gb.gap_start_ == 0, "Expected: 0, Received: %zu", gb.gap_start_);
-  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
-
-  /* gb_move_cursor(0); */
   /* assertm(gb.gap_start_ == 0, "Expected: 0, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_start_, gb.capacity_); */
+  /* assertm(gb.gap_end_ == 2, "Expected: 2, Received: %zu", gb.gap_end_); */
 
-  gb_insert_char(&gb, 'a');
-  buf_cstr = gb_buf_as_cstr(&gb);
-  assertm(strcmp(buf_cstr, "a") == 0, "Expected: a, Received: %s", buf_cstr);
-  free(buf_cstr);
-  assertm(gb.length == 1, "Expected: 1, Received: %zu", gb.length);
-  assertm(gb.gap_start_ == 1, "Expected: 1, Received: %zu", gb.gap_start_);
-  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
-
-  gb_insert_char(&gb, 'b');
-  buf_cstr = gb_buf_as_cstr(&gb);
-  assertm(strcmp(buf_cstr, "ab") == 0, "Expected: a, Received: %s", buf_cstr);
-  free(buf_cstr);
-  assertm(gb.length == 2, "Expected: 2, Received: %zu", gb.length);
-  assertm(gb.gap_start_ == 2, "Expected: 2, Received: %zu", gb.gap_start_);
-  assertm(gb.gap_end_ == 1, "Expected: 1, Received: %zu", gb.gap_end_);
 
   gb_insert_char(&gb, 'c');
-  gb_insert_char(&gb, 'd');
+  gb_insert_char(&gb, 'a');
+  gb_insert_char(&gb, 'e');
+  gb_insert_char(&gb, 'r');
+  gb_move_cursor(&gb, -2);
+  gb_insert_char(&gb, 't');
   buf_cstr = gb_buf_as_cstr(&gb);
-  assertm(strcmp(buf_cstr, "abcd") == 0, "Expected: a, Received: %s", buf_cstr);
+  assertm(strcmp(buf_cstr, "cater") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
-  assertm(gb.length == 4, "Expected: 4, Received: %zu", gb.length);
-  assertm(gb.gap_start_ == 4, "Expected: 4, Received: %zu", gb.gap_start_);
-  assertm(gb.gap_end_ == 3, "Expected: 3, Received: %zu", gb.gap_end_);
+  assertm(gb.length == 5, "Expected: 5, Received: %zu", gb.length);
+  /* assertm(gb.gap_start_ == 3, "Expected: 0, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == 4, "Expected: 1, Received: %zu", gb.gap_end_); */
 
-  /* gb_insert_cstr("bcde"); */
-  /* assertm(gb.gap_start_ == 5, "Expected: 5, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_end_, gb.capacity_); */
 
-  /* gb_delete_chars(0); // should be no op */
-  /* assertm(strcmp(gb.buf, "abcde") == 0, "Expected: abcde, Received: %s", gb.buf); */
-  /* assertm(gb.length == 5, "Expected: 5, Received: %zu", gb.length); */
-  /* assertm(gb.size == 6, "Expected: 6, Received: %lld", gb.size); // includes \0 */
-  /* assertm(gb.gap_start_ == 5, "Expected: 5, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_end_, gb.capacity_); */
+  gb_move_cursor(&gb, 2);
+  gb_insert_char(&gb, 'p');
+  gb_move_cursor(&gb, 100000);
+  gb_move_cursor(&gb, 0);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "caterp") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
+  /* assertm(gb.gap_start_ == 6, "Expected: 0, Received: %zu", gb.gap_start_); */
+  /* assertm(gb.gap_end_ == 6, "Expected: 1, Received: %zu", gb.gap_end_); */
 
-  /* gb_delete_chars(2); */
-  /* assertm(strcmp(gb.buf, "abc") == 0, "Expected: abcde, Received: %s", gb.buf); */
-  /* assertm(gb.length == 3, "Expected: 3, Received: %zu", gb.length); */
-  /* assertm(gb.size == 4, "Expected: 4, Received: %lld", gb.size); // includes \0 */
-  /* assertm(gb.gap_start_ == 3, "Expected: 3, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == gb.capacity_, "Expected: %zu, Received: %zu", gb.gap_start_, gb.capacity_); */
+  gb_insert_char(&gb, 'l');
+  gb_insert_char(&gb, 'r');
+  gb_move_cursor(&gb, -2);
+  gb_insert_char(&gb, 'i');
+  gb_insert_char(&gb, 'l');
+  gb_move_cursor(&gb, 1);
+  gb_insert_char(&gb, 'e');
+  gb_move_cursor(&gb, 5000);
+  gb_insert_char(&gb, 's');
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "caterpillers") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 12, "Expected: 12, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -1);
+  gb_move_cursor(&gb, -5000);
+  gb_insert_char(&gb, '*');
+  gb_move_cursor(&gb, 5000);
+  gb_insert_char(&gb, '*');
+  gb_move_cursor(&gb, -5000);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "*caterpillers*") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 14, "Expected: 14, Received: %zu", gb.length);
 
   gb_deinit(&gb);
+
+  /* dbg str test */
+
+  gb_init(&gb);
+
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "..") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, 'a');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "a.") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 1, "Expected: 1, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, 'b');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "ab") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 2, "Expected: 2, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, 'c');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abc.") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 3, "Expected: 3, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -3);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, ".abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 3, "Expected: 3, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, '1');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "1abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 4, "Expected: 4, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, '2');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "12.abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 5, "Expected: 5, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, '3');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "123abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 3, "Expected: 3, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 3, "Expected: 3, Received: %zu", gb.gap_end_);
+
+
+  gb_move_cursor(&gb, 3);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "123abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
+  assertm(gb.gap_start_ == 6, "Expected: 6, Received: %zu", gb.gap_start_);
+  assertm(gb.gap_end_ == 6, "Expected: 6, Received: %zu", gb.gap_end_);
+
+  gb_insert_char(&gb, 'd');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "123abcd.") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 7, "Expected: 7, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -2000);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, ".123abcd") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 7, "Expected: 7, Received: %zu", gb.length);
+
+  gb_insert_char(&gb, '0');
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "0123abcd") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 8, "Expected: 8, Received: %zu", gb.length);
+
+  gb_deinit(&gb);
+
+  // ---- END GAP BUFFER TESTS ----
 
   log(L_INFO, "<zdx_str_test> All ok!\n");
 
