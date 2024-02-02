@@ -29,6 +29,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define zdx_min(a, b) ((a) < (b) ? (a) : (b))
+#define zdx_max(a, b) ((a) > (b) ? (a) : (b))
+
 // Arg extraction macros
 #define zdx_last_arg(...) (__VA_ARGS__)
 #define zdx_first_arg(first, ...) (first)
