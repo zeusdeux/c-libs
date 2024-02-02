@@ -2,7 +2,7 @@ LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
 FLAGS = -std=c17 -Wall -pedantic -O3
 TEST_FLAGS = $(FLAGS) $(LINKER_FLAGS)
 
-DBG_FLAGS = -DZDX_TRACE_ENABLE -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated
+DBG_FLAGS = -DZDX_TRACE_ENABLE -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -fsanitize=address
 DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
 
 tags:
