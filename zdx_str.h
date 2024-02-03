@@ -451,7 +451,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
     dbg("!! move left")
     const void *src = (void *)(gb->buf + new_gap_start);
     void *dst = (void *)(gb->buf + new_gap_start + curr_gap_len);
-    memmove(dst, src, gb->length - new_gap_start);
+    memmove(dst, src, gb->gap_start_ - new_gap_start);
 
     gb->gap_start_ = new_gap_start;
     gb->gap_end_ = new_gap_start + curr_gap_len;
@@ -501,10 +501,15 @@ void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
 
   gb_assert_validity(gb);
   GB_ASSERT(cstr != NULL, "[zdx str] Expected: A c string to insert, Received: %p", (void *)cstr);
-  GB_ASSERT(cstr_len > 0, "[zdx str] Expected: insertion of a string of non-zero length, Received: %zu", cstr_len);
+  GB_ASSERT(cstr_len >= 0, "[zdx str] Expected: insertion of a string of non-zero length, Received: %zu", cstr_len);
+
+  if (cstr_len == 0) {
+    return;
+  }
 
   while(cstr_len > gb_gap_len(gb)) {
-    gb_resize_gap_(gb, GB_MIN_GAP_SIZE);
+    size_t multiple = (cstr_len / GB_MIN_GAP_SIZE) + 1; /* +1 to over allocate to reduce allocations */
+    gb_resize_gap_(gb, multiple * GB_MIN_GAP_SIZE);
   }
 
   const void *restrict src = (void *)cstr;
@@ -527,9 +532,9 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
   /* delete */
   if (count > 0) {
     int64_t new_gap_end = gb->gap_end_ + count;
-    new_gap_end = new_gap_end > ((int64_t) gb->length) ? gb->length : new_gap_end;
+    new_gap_end = new_gap_end > ((int64_t) gb_len_with_gap(gb)) ? gb_len_with_gap(gb) : new_gap_end;
 
-    dbg("-- delete \t| gap end %zu \t| new gap end %lld", gb->gap_end_, new_gap_end);
+    dbg("-- delete count %lld \t| gap end %zu \t| new gap end %lld", count, gb->gap_end_, new_gap_end);
     gb->length = gb->length - (new_gap_end - gb->gap_end_);
     gb->gap_end_ = new_gap_end;
   }
@@ -539,7 +544,7 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
     int64_t new_gap_start = gb->gap_start_ + count; /* count will be -ve hence "+" */
     new_gap_start = new_gap_start < 0 ? 0 : new_gap_start;
 
-    dbg("-- backspc \t| gap start %zu \t| new gap start %lld", gb->gap_start_, new_gap_start);
+    dbg("-- backspc count %lld \t| gap start %zu \t| new gap start %lld", count ,gb->gap_start_, new_gap_start);
     gb->length = gb->length - (gb->gap_start_ - new_gap_start);
     gb->gap_start_ = new_gap_start;
   }
