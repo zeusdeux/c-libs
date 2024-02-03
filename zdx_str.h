@@ -31,10 +31,6 @@
  * writing full files, read and write to files or buffers by line, etc. Maybe even replacements
  * for splitting a string by token (as strtok is poo) and lazily getting parts back, etc.
  */
-/**
- * ALWAYS compile with -Werror=nonnull -Werror-null-dereference when using this library!!
- * Without that, some NULL checks just get optimized away in release builds.
- */
 #include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -44,7 +40,7 @@
 #pragma GCC diagnostic error "-Wnonnull"
 #pragma GCC diagnostic error "-Wnull-dereference"
 
-// ---- STRING BUILDER ----
+/* ---- STRING BUILDER ---- */
 
 #ifndef SB_REALLOC
 #define SB_REALLOC realloc
@@ -72,7 +68,7 @@ typedef struct string_builder {
   char *str;
 } sb_t;
 
-// Calling sb_concat with a non-c string array will lead to undefined behaviour
+/* Calling sb_concat with a non-c string array will lead to undefined behaviour */
 #define sb_concat(sb, arr)                              \
   sb_append_cstrs_((sb),                                \
                    (arr) ? zdx_arr_len(arr) : 0,        \
@@ -87,10 +83,10 @@ typedef struct string_builder {
   _Pragma("GCC diagnostic pop")
 
 size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_size);
-// same as sb_free(sb_t *const sb) but the [static 1] enforces a pointer non-null check during compile
+/* same as sb_free(sb_t *const sb) but the [static 1] enforces a pointer non-null check during compile */
 void sb_deinit(sb_t sb[const static 1]);
 
-// ---- GAP BUFFER ----
+/* ---- GAP BUFFER ---- */
 
 #ifndef GB_REALLOC
 #define GB_REALLOC realloc
@@ -124,14 +120,15 @@ void gb_deinit(gb_t gb[const static 1]);
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos);
 void gb_insert_char(gb_t gb[const static 1], const char c);
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
-void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve -> backspace, count -ve -> delete
+void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve -> delete, count -ve -> backspace
+size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 
 #endif // ZDX_STR_H_
 
 #ifdef ZDX_STR_IMPLEMENTATION
 
-// ---- STRING BUILDER IMPLEMENTATION ----
+/* ---- STRING BUILDER IMPLEMENTATION ---- */
 
 static void sb_resize_(sb_t sb[const static 1], const size_t reqd_capacity)
 {
@@ -143,7 +140,9 @@ static void sb_resize_(sb_t sb[const static 1], const size_t reqd_capacity)
   }
   sb->str = SB_REALLOC(sb->str, sb->capacity * sizeof(char));
   SB_ASSERT(sb->str != NULL, "[zdx str] string builder resize allocation failed");
+
   dbg("++ resized (capacity %zu)", sb->capacity);
+  return;
 }
 
 // Using sb_append_cstrs_ with non-c strings will lead to undefined behavior
@@ -217,10 +216,11 @@ void sb_deinit(sb_t sb[const static 1])
   sb->str = NULL;
   sb->length = 0;
   sb->capacity = 0;
+  return;
 }
 
 
-// ---- GAP BUFFER IMPLEMENTATION ----
+/* ---- GAP BUFFER IMPLEMENTATION ---- */
 
 /* Guarded dbg code as it allocates */
 #ifdef ZDX_TRACE_ENABLE
@@ -242,11 +242,6 @@ void sb_deinit(sb_t sb[const static 1])
     GB_ASSERT(((int64_t)(gb)->length) >=0, "[zdx str] Expected: length is non-negative, Received: %lld", ((int64_t)(gb)->length));               \
   } while(0)
 
-/*
- * when gap start and end are same, means we have one gap slot left
- * and when gap start > gap end then we have 0 gap slots left
- * hence the +1
- */
 #define gb_gap_len(gb) ((gb)->gap_end_ - (gb)->gap_start_)
 #define gb_len_with_gap(gb) ((gb)->length + gb_gap_len(gb))
 
@@ -323,7 +318,6 @@ static void gb_resize_gap_(gb_t gb[const static 1], size_t new_gap_len)
   dbg("++ resized \t| size %zu \t| gap start %zu \t| gap end %zu", buf_new_len, gb->gap_start_, gb->gap_end_);
 
   gb_dbg("<<", gb);
-  // done
   return;
 }
 
@@ -361,9 +355,9 @@ void gb_init(gb_t gb[const static 1])
   gb->buf = GB_REALLOC(NULL, init_size * sizeof(char));
   GB_ASSERT(gb->buf != NULL, "[zdx str] Allocation failed for initializing gb->buf to default capacity");
 
-  gb->gap_start_ = 0;
-  gb->gap_end_ = init_size; // end is beyond last valid index for gb->buf as the last valid index is a part of the gap
   gb->length = 0;
+  gb->gap_start_ = 0;
+  gb->gap_end_ = init_size; /* gap end is beyond last valid index for gb->buf as the last valid index is a part of the gap */
 
   gb_dbg("<<", gb);
   return;
@@ -389,26 +383,32 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
   gb_assert_validity(gb);
 
   int64_t signed_new_gap_start = gb->gap_start_ + pos;
-  // Lower bound of new gap start position aka cursor is 0
+  /* Lower bound of new gap start position aka cursor is 0 */
   signed_new_gap_start = signed_new_gap_start < 0 ? 0 : signed_new_gap_start;
-  // Upper bound of new gap start position aka cursor is one beyond end of gb->buf
+  /* Upper bound of new gap start position aka cursor is one beyond end of gb->buf */
   signed_new_gap_start = (size_t) signed_new_gap_start > gb->length ? gb->length : signed_new_gap_start;
 
-  // Safely treat as size_t which is unsigned due to bounded assignments above
-  // and size_t always being atleast as wide as uint64_t
+  /*
+   * safely treat as size_t due to bounded assignments above
+   * size_t is always atleast as wide as uint64_t which is
+   * why this works. It's done to get rid of compiler warnings
+   * regarding int64_t and size_t mismatch
+   */
   const size_t new_gap_start = (size_t) signed_new_gap_start;
   const size_t curr_gap_len = gb_gap_len(gb);
 
   dbg(">> pos %lld \t| gap len %zu \t| new gap start %zu", pos, curr_gap_len, new_gap_start);
 
-  // noop as new cursor position is same as current
+  /* noop as new cursor position is same as current */
   if (new_gap_start == gb->gap_start_) {
     gb_dbg("<<", gb);
     return;
   }
 
-  // gap is empty so we can just update the start and end
-  // without needing to do any memmoves
+  /*
+   * gap is empty so we can just update the start and end
+   * without needing to do any memmoves
+   */
   if (!curr_gap_len) {
     gb->gap_start_ = new_gap_start;
     gb->gap_end_ = gb->gap_start_;
@@ -416,7 +416,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
     return;
   }
 
-  // Move left
+  /* Move left */
   if (new_gap_start < gb->gap_start_) {
     dbg("!! move left")
     const void *src = (void *)(gb->buf + new_gap_start);
@@ -427,7 +427,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
     gb->gap_end_ = new_gap_start + curr_gap_len;
   }
 
-  // Move right
+  /* Move right */
   if (new_gap_start > gb->gap_start_) {
     dbg("!! move right")
     const void *src = (void *)(gb->buf + gb->gap_end_);
@@ -460,13 +460,14 @@ void gb_insert_char(gb_t gb[const static 1], const char c)
 }
 
 /*
- * Non cstring input will lead to undefined behavior for this function
+ * Non c-string input will lead to undefined behavior for this function
  */
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
 {
   const size_t cstr_len = strlen(cstr);
+
   gb_dbg(">>", gb);
-  dbg(">> cstr %s \t| length %zu", cstr, cstr_len);
+  dbg(">> cstr %s \t| len(%s) %zu", cstr, cstr, cstr_len);
 
   gb_assert_validity(gb);
   GB_ASSERT(cstr != NULL, "[zdx str] Expected: A c string to insert, Received: %p", (void *)cstr);
@@ -487,13 +488,13 @@ void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
   return;
 }
 
-// count -ve -> backspace, count +ve -> delete
+/* count -ve -> backspace, count +ve -> delete */
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
 {
   gb_dbg(">>", gb);
   gb_assert_validity(gb);
 
-  // delete
+  /* delete */
   if (count > 0) {
     int64_t new_gap_end = gb->gap_end_ + count;
     new_gap_end = new_gap_end > ((int64_t) gb->length) ? gb->length : new_gap_end;
@@ -503,9 +504,9 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
     gb->gap_end_ = new_gap_end;
   }
 
-  // backspace
+  /* backspace */
   if (count < 0) {
-    int64_t new_gap_start = gb->gap_start_ + count; // count will be -ve hence "+"
+    int64_t new_gap_start = gb->gap_start_ + count; /* count will be -ve hence "+" */
     new_gap_start = new_gap_start < 0 ? 0 : new_gap_start;
 
     dbg("-- backspc \t| gap start %zu \t| new gap start %lld", gb->gap_start_, new_gap_start);
@@ -515,6 +516,13 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
 
   gb_dbg("<<", gb);
   return;
+}
+
+size_t gb_get_cursor(gb_t gb[const static 1])
+{
+  gb_assert_validity(gb);
+
+  return gb->gap_start_;
 }
 
 #endif // ZDX_STR_IMPLEMENTATION

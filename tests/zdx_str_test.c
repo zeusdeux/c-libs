@@ -295,7 +295,10 @@ int main(void)
   assertm(gb.length == 10, "Expected: 10, Received: %zu", gb.length);
 
   gb_move_cursor(&gb, -5);
+  size_t curr_cursor = gb_get_cursor(&gb);
+  assertm(curr_cursor == 5, "Expected: 5, Received: %zu", curr_cursor);
   gb_delete_chars(&gb, 2);
+  assertm(curr_cursor == 5, "Expected: 5, Received: %zu", curr_cursor);
   buf_cstr = gb_buf_as_cstr(&gb);
   assertm(strcmp(buf_cstr, "abcdehij") == 0, "Expected: \"abcdehij\", Received: %s", buf_cstr);
   free(buf_cstr);
@@ -314,6 +317,9 @@ int main(void)
   assertm(strcmp(buf_cstr, "abc....hij") == 0, "Expected: \"abc....hij\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
+  curr_cursor = gb_get_cursor(&gb);
+  assertm(curr_cursor == 3, "Expected: 3, Received: %zu", curr_cursor);
+
 
   gb_deinit(&gb);
 
