@@ -25,18 +25,20 @@
 #ifndef ZDX_STR_H_
 #define ZDX_STR_H_
 
+/* defines symbols size_t, NULL, malloc, realloc, etc needed by macros and structs declarations */
+#include <stdlib.h>
+/* needed for usage of int64_t, etc in forward declarations below */
+#include <stdint.h>
+/* needed for macros used in the header section */
+#include <stdbool.h>
+#include "./zdx_util.h"
+
 /**
  * This lib should contain string builder functionality (with interfaces for buf as well as cstr)
  * and string view functionality. It should also contain convenience methods for reading and
  * writing full files, read and write to files or buffers by line, etc. Maybe even replacements
  * for splitting a string by token (as strtok is poo) and lazily getting parts back, etc.
  */
-#include <assert.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include "./zdx_util.h"
-
 #pragma GCC diagnostic error "-Wnonnull"
 #pragma GCC diagnostic error "-Wnull-dereference"
 
@@ -86,6 +88,7 @@ size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_
 /* same as sb_free(sb_t *const sb) but the [static 1] enforces a pointer non-null check during compile */
 void sb_deinit(sb_t sb[const static 1]);
 
+
 /* ---- GAP BUFFER ---- */
 
 #ifndef GB_REALLOC
@@ -124,9 +127,36 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve
 size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 
+
+/* --- FILE HELPERS ---- */
+
+#ifndef FL_MALLOC
+#define FL_MALLOC malloc
+#endif // FL_MALLOC
+
+#ifndef FL_FREE
+#define FL_FREE free
+#endif // FL_FREE
+
+
+typedef struct file_content {
+  bool is_valid;
+  char *err_msg;
+  void *contents;
+} fl_content_t;
+
+/*
+ * The arguments to fl_read_full_file are the same as fopen.
+ * It returns a char* that must be freed by the caller
+ */
+fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode);
+
 #endif // ZDX_STR_H_
 
+
 #ifdef ZDX_STR_IMPLEMENTATION
+
+#include <string.h>
 
 /* ---- STRING BUILDER IMPLEMENTATION ---- */
 
@@ -222,7 +252,7 @@ void sb_deinit(sb_t sb[const static 1])
 
 /* ---- GAP BUFFER IMPLEMENTATION ---- */
 
-/* Guarded dbg code as it allocates */
+/* Guarded dbg trace code as it allocates */
 #ifdef ZDX_TRACE_ENABLE
 #define gb_dbg(label, gb)                                               \
   do {                                                                  \
@@ -524,5 +554,96 @@ size_t gb_get_cursor(gb_t gb[const static 1])
 
   return gb->gap_start_;
 }
+
+
+/* FILE HELPERS IMPLEMENTATION */
+
+/* Guarded as unistd.h, sys/stat.h and friends are POSIX specific */
+#if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+
+/* needed for PATH_MAX */
+#include <limits.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#define fc_dbg(label, fc) dbg("%s valid %d \t| err %s \t| contents (%p) %s", \
+                              (label), (fc).is_valid, (fc).err_msg, ((void *)(fc).contents), (char *)(fc).contents)
+
+fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode)
+{
+  dbg(">> path %s \t| mode %s", path, mode);
+
+#ifdef ZDX_TRACE_ENABLE
+  char cwd[PATH_MAX] = {0};
+  dbg(">> cwd %s", getcwd(cwd, sizeof(cwd)));
+#endif
+
+  /* init return type */
+  fl_content_t fc = {
+    .is_valid = false,
+    .err_msg = NULL,
+    .contents = NULL
+  };
+
+  /* open file */
+  FILE *f = fopen(path, mode);
+
+  if (f == NULL) {
+    fc.is_valid = false;
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  /* stat file for file size */
+  struct stat s;
+
+  if (fstat(fileno(f), &s) != 0) {
+    fc.is_valid = false;
+    fc.err_msg = strerror(errno);
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  /* read full file and close */
+  char *contents_buf = FL_MALLOC((s.st_size + 1) * sizeof(char));
+  size_t bytes_read = fread(contents_buf, sizeof(char), s.st_size, f);
+  fclose(f);
+
+  if (ferror(f)) {
+    fc.is_valid = false;
+    fc.err_msg = "Reading file failed";
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  contents_buf[bytes_read] = '\0';
+
+  fc.is_valid = true;
+  fc.err_msg = false;
+  fc.contents = (void *)contents_buf;
+
+  fc_dbg("<<", fc);
+  return fc;
+}
+
+void fc_deinit(fl_content_t *fc)
+{
+  fc_dbg(">>", *fc);
+
+  FL_FREE(fc->contents);
+  fc->contents = NULL;
+  fc->is_valid = false;
+  fc->err_msg = NULL;
+
+  fc_dbg("<<", *fc);
+  return;
+}
+
+#elif defined(_WIN32) || defined(_WIN64)
+/* No support for windows yet */
+#else
+/* Unsupported OSes */
+#endif
 
 #endif // ZDX_STR_IMPLEMENTATION
