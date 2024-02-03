@@ -99,15 +99,14 @@ int main(void)
 
   gb_t gb = {0};
 
+  /* gb_insert_char test */
+
   gb_init(&gb);
 
   char *buf_cstr = gb_buf_as_cstr(&gb);
   assertm(strcmp(buf_cstr, "") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
-  /* assertm(gb.gap_start_ == 0, "Expected: 0, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == 2, "Expected: 2, Received: %zu", gb.gap_end_); */
-
 
   gb_insert_char(&gb, 'c');
   gb_insert_char(&gb, 'a');
@@ -119,9 +118,6 @@ int main(void)
   assertm(strcmp(buf_cstr, "cater") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 5, "Expected: 5, Received: %zu", gb.length);
-  /* assertm(gb.gap_start_ == 3, "Expected: 0, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == 4, "Expected: 1, Received: %zu", gb.gap_end_); */
-
 
   gb_move_cursor(&gb, 2);
   gb_insert_char(&gb, 'p');
@@ -131,8 +127,6 @@ int main(void)
   assertm(strcmp(buf_cstr, "caterp") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
-  /* assertm(gb.gap_start_ == 6, "Expected: 0, Received: %zu", gb.gap_start_); */
-  /* assertm(gb.gap_end_ == 6, "Expected: 1, Received: %zu", gb.gap_end_); */
 
   gb_insert_char(&gb, 'l');
   gb_insert_char(&gb, 'r');
@@ -161,7 +155,7 @@ int main(void)
 
   gb_deinit(&gb);
 
-  /* dbg str test */
+  /* gb_buf_as_dbg_cstr test */
 
   gb_init(&gb);
 
@@ -214,7 +208,6 @@ int main(void)
   assertm(gb.gap_start_ == 3, "Expected: 3, Received: %zu", gb.gap_start_);
   assertm(gb.gap_end_ == 3, "Expected: 3, Received: %zu", gb.gap_end_);
 
-
   gb_move_cursor(&gb, 3);
   buf_cstr = gb_buf_as_dbg_cstr(&gb);
   assertm(strcmp(buf_cstr, "123abc") == 0, "Expected: \"\", Received: %s", buf_cstr);
@@ -240,6 +233,87 @@ int main(void)
   assertm(strcmp(buf_cstr, "0123abcd") == 0, "Expected: \"\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 8, "Expected: 8, Received: %zu", gb.length);
+
+  gb_deinit(&gb);
+
+  /* gb_insert_cstr test */
+  const char *some_str = "abd";
+  const char *some_other_str = "12345";
+
+  gb_init(&gb);
+
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
+
+  gb_insert_cstr(&gb, some_str);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abd") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 3, "Expected: 3, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -1);
+  gb_insert_cstr(&gb, "c");
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcd") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 4, "Expected: 4, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -1000000);
+  gb_insert_cstr(&gb, some_other_str);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "12345abcd") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 9, "Expected: 9, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, 1000);
+  gb_insert_cstr(&gb, "!!");
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "12345abcd!!") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 11, "Expected: 11, Received: %zu", gb.length);
+
+  gb_deinit(&gb);
+
+  /* gb_delete_char test */
+
+  gb_init(&gb);
+
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "") == 0, "Expected: \"\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 0, "Expected: 0, Received: %zu", gb.length);
+
+  gb_insert_cstr(&gb, "abcdefghij");
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcdefghij") == 0, "Expected: \"abcdefghij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcdefghij") == 0, "Expected: \"abcdefghij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 10, "Expected: 10, Received: %zu", gb.length);
+
+  gb_move_cursor(&gb, -5);
+  gb_delete_chars(&gb, 2);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcdehij") == 0, "Expected: \"abcdehij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abcde..hij") == 0, "Expected: \"abcde..hij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 8, "Expected: 8, Received: %zu", gb.length);
+
+  gb_delete_chars(&gb, -2);
+  gb_delete_chars(&gb, 0); // noop
+  gb_delete_chars(&gb, 0); // noop
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abchij") == 0, "Expected: \"abchij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  buf_cstr = gb_buf_as_dbg_cstr(&gb);
+  assertm(strcmp(buf_cstr, "abc....hij") == 0, "Expected: \"abc....hij\", Received: %s", buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == 6, "Expected: 6, Received: %zu", gb.length);
 
   gb_deinit(&gb);
 

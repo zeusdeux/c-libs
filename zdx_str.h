@@ -42,6 +42,7 @@
 #include "./zdx_util.h"
 
 #pragma GCC diagnostic error "-Wnonnull"
+#pragma GCC diagnostic error "-Wnull-dereference"
 
 // ---- STRING BUILDER ----
 
@@ -122,8 +123,8 @@ void gb_init(gb_t gb[const static 1]);
 void gb_deinit(gb_t gb[const static 1]);
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos);
 void gb_insert_char(gb_t gb[const static 1], const char c);
-void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1], const size_t cstr_len);
-void gb_delete_chars(gb_t gb[const static 1], const uint64_t count); // count +ve -> backspace, count -ve -> delete
+void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
+void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve -> backspace, count -ve -> delete
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 
 #endif // ZDX_STR_H_
@@ -352,15 +353,17 @@ char *gb_buf_as_cstr(const gb_t gb[const static 1])
 void gb_init(gb_t gb[const static 1])
 {
   gb_dbg(">>", gb);
-  GB_ASSERT(gb != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", (void *)gb);
+  gb_assert_validity(gb);
 
   const size_t init_size = GB_INIT_LENGTH > GB_MIN_GAP_SIZE ? GB_INIT_LENGTH : GB_MIN_GAP_SIZE;
 
-  gb->gap_start_ = 0;
-  gb->gap_end_ = init_size; // end is beyond last valid index for gb->buf
-  gb->length = 0;
+  /* can be replaced with gb_resize_gap_(gb, init_size) but that does checks we don't need here */
   gb->buf = GB_REALLOC(NULL, init_size * sizeof(char));
   GB_ASSERT(gb->buf != NULL, "[zdx str] Allocation failed for initializing gb->buf to default capacity");
+
+  gb->gap_start_ = 0;
+  gb->gap_end_ = init_size; // end is beyond last valid index for gb->buf as the last valid index is a part of the gap
+  gb->length = 0;
 
   gb_dbg("<<", gb);
   return;
@@ -383,7 +386,6 @@ void gb_deinit(gb_t gb[const static 1])
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
 {
   gb_dbg(">>", gb);
-
   gb_assert_validity(gb);
 
   int64_t signed_new_gap_start = gb->gap_start_ + pos;
@@ -457,7 +459,62 @@ void gb_insert_char(gb_t gb[const static 1], const char c)
   return;
 }
 
-void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1], const size_t cstr_len);
-void gb_delete_chars(gb_t gb[const static 1], const uint64_t count); // count +ve -> backspace, count -ve -> delete
+/*
+ * Non cstring input will lead to undefined behavior for this function
+ */
+void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
+{
+  const size_t cstr_len = strlen(cstr);
+  gb_dbg(">>", gb);
+  dbg(">> cstr %s \t| length %zu", cstr, cstr_len);
+
+  gb_assert_validity(gb);
+  GB_ASSERT(cstr != NULL, "[zdx str] Expected: A c string to insert, Received: %p", (void *)cstr);
+  GB_ASSERT(cstr_len > 0, "[zdx str] Expected: insertion of a string of non-zero length, Received: %zu", cstr_len);
+
+  while(cstr_len > gb_gap_len(gb)) {
+    gb_resize_gap_(gb, GB_MIN_GAP_SIZE);
+  }
+
+  const void *restrict src = (void *)cstr;
+  void *restrict dst = (void *)(gb->buf + gb->gap_start_);
+  memcpy(dst, src, cstr_len);
+
+  gb->gap_start_ += cstr_len;
+  gb->length += cstr_len;
+
+  gb_dbg("<<", gb);
+  return;
+}
+
+// count -ve -> backspace, count +ve -> delete
+void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
+{
+  gb_dbg(">>", gb);
+  gb_assert_validity(gb);
+
+  // delete
+  if (count > 0) {
+    int64_t new_gap_end = gb->gap_end_ + count;
+    new_gap_end = new_gap_end > ((int64_t) gb->length) ? gb->length : new_gap_end;
+
+    dbg("-- delete \t| gap end %zu \t| new gap end %lld", gb->gap_end_, new_gap_end);
+    gb->length = gb->length - (new_gap_end - gb->gap_end_);
+    gb->gap_end_ = new_gap_end;
+  }
+
+  // backspace
+  if (count < 0) {
+    int64_t new_gap_start = gb->gap_start_ + count; // count will be -ve hence "+"
+    new_gap_start = new_gap_start < 0 ? 0 : new_gap_start;
+
+    dbg("-- backspc \t| gap start %zu \t| new gap start %lld", gb->gap_start_, new_gap_start);
+    gb->length = gb->length - (gb->gap_start_ - new_gap_start);
+    gb->gap_start_ = new_gap_start;
+  }
+
+  gb_dbg("<<", gb);
+  return;
+}
 
 #endif // ZDX_STR_IMPLEMENTATION
