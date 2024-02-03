@@ -25,12 +25,12 @@
 #ifndef ZDX_STR_H_
 #define ZDX_STR_H_
 
+#include <stdbool.h>
 /* defines symbols size_t, NULL, malloc, realloc, etc needed by macros and structs declarations */
 #include <stdlib.h>
 /* needed for usage of int64_t, etc in forward declarations below */
 #include <stdint.h>
 /* needed for macros used in the header section */
-#include <stdbool.h>
 #include "./zdx_util.h"
 
 /**
@@ -123,6 +123,7 @@ void gb_deinit(gb_t gb[const static 1]);
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos);
 void gb_insert_char(gb_t gb[const static 1], const char c);
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
+void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve -> delete, count -ve -> backspace
 size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
@@ -138,11 +139,11 @@ char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 #define FL_FREE free
 #endif // FL_FREE
 
-
 typedef struct file_content {
   bool is_valid;
   char *err_msg;
   void *contents;
+  size_t size; /* not off_t as size is set to the return value of fread which is size_t. Also off_t is a POSIX thing and size_t is std C */
 } fl_content_t;
 
 /*
@@ -190,7 +191,7 @@ size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const
     // +1 for preemptively growing sb->str in case we need to append a '\0'
     size_t reqd_capacity = sb->length + cstr_len + 1;
 
-    dbg("<< (%s, %zu)", cstr, cstr_len);
+    dbg(">> cstr %s \t| len %zu \t| reqd cap %zu \t| sb->len %zu", cstr, cstr_len, reqd_capacity, sb->length);
 
     if (reqd_capacity > sb->capacity) {
       sb_resize_(sb, reqd_capacity);
@@ -205,7 +206,7 @@ size_t sb_append_cstrs_(sb_t sb[const static 1], const size_t cstrs_count, const
     sb->str[start + cstr_len] = '\0';
     sb->length += cstr_len;
 
-    dbg(">> (%s, %zu)", sb->str, sb->length);
+    dbg("<< sb->str %s \t| sb->len %zu", sb->str, sb->length);
   }
 
   return sb->length;
@@ -217,7 +218,7 @@ size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_
   SB_ASSERT(buf != NULL, "[zdx_str] Expected: valid buffer, Received: %p", (void *)buf);
   SB_ASSERT(buf_size > 0, "[zdx_str] Expected: buf size great than 0, Received: %zu", buf_size);
 
-  dbg("<< (%p, %zu)", (void *)buf, buf_size);
+  dbg(">> (%p, %zu)", (void *)buf, buf_size);
 
   // +1 for preemptively growing sb->str in case we need to append a '\0'
   const size_t reqd_capacity = sb->length + buf_size + 1;
@@ -235,7 +236,7 @@ size_t sb_append_buf(sb_t sb[const static 1], const char *buf, const size_t buf_
     sb->str[sb->length] = '\0';
   }
 
-  dbg(">> (%s, %zu)", sb->str, sb->length);
+  dbg("<< (%s, %zu)", sb->str, sb->length);
 
   return sb->length;
 }
@@ -523,6 +524,33 @@ void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
   return;
 }
 
+void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t len)
+{
+  gb_dbg(">>", gb);
+  dbg(">> buf %p \t| length %zu", buf, len);
+  gb_assert_validity(gb);
+  GB_ASSERT(buf != NULL, "[zdx str] Expected: a non-NULL buf of bytes to insert, Received: %p", buf);
+  GB_ASSERT(len >= 0, "[zdx str] Expected: a buf of len >= 0, Received: %zu", len);
+
+  if (len == 0) {
+    return;
+  }
+
+  while(len > gb_gap_len(gb)) {
+    size_t multiple = (len / GB_MIN_GAP_SIZE) + 1; /* +1 to over allocate to reduce allocations */
+    gb_resize_gap_(gb, multiple * GB_MIN_GAP_SIZE);
+  }
+
+  void *restrict dst = (void *)(gb->buf + gb->gap_start_);
+  memcpy(dst, buf, len);
+
+  gb->gap_start_ += len;
+  gb->length += len;
+
+  gb_dbg("<<", gb);
+  return;
+}
+
 /* count -ve -> backspace, count +ve -> delete */
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
 {
@@ -563,6 +591,9 @@ size_t gb_get_cursor(gb_t gb[const static 1])
 
 /* FILE HELPERS IMPLEMENTATION */
 
+#define fc_dbg(label, fc) dbg("%s valid %d \t| err %s \t| contents (%p) %s", \
+                              (label), (fc).is_valid, (fc).err_msg, ((void *)(fc).contents), (char *)(fc).contents)
+
 /* Guarded as unistd.h, sys/stat.h and friends are POSIX specific */
 #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
 
@@ -572,13 +603,11 @@ size_t gb_get_cursor(gb_t gb[const static 1])
 #include <unistd.h>
 #include <sys/stat.h>
 
-#define fc_dbg(label, fc) dbg("%s valid %d \t| err %s \t| contents (%p) %s", \
-                              (label), (fc).is_valid, (fc).err_msg, ((void *)(fc).contents), (char *)(fc).contents)
-
 fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode)
 {
   dbg(">> path %s \t| mode %s", path, mode);
 
+  /* guarded as it does a stack allocation */
 #ifdef ZDX_TRACE_ENABLE
   char cwd[PATH_MAX] = {0};
   dbg(">> cwd %s", getcwd(cwd, sizeof(cwd)));
@@ -588,7 +617,8 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   fl_content_t fc = {
     .is_valid = false,
     .err_msg = NULL,
-    .contents = NULL
+    .contents = NULL,
+    .size = 0
   };
 
   /* open file */
@@ -625,7 +655,8 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   contents_buf[bytes_read] = '\0';
 
   fc.is_valid = true;
-  fc.err_msg = false;
+  fc.err_msg = NULL;
+  fc.size = bytes_read; /* as contents_buf is truncated with \0 at index bytes_read */
   fc.contents = (void *)contents_buf;
 
   fc_dbg("<<", fc);
@@ -638,6 +669,7 @@ void fc_deinit(fl_content_t *fc)
 
   FL_FREE(fc->contents);
   fc->contents = NULL;
+  fc->size = 0;
   fc->is_valid = false;
   fc->err_msg = NULL;
 

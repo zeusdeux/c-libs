@@ -1,4 +1,10 @@
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <limits.h>
+
 #define SB_MIN_CAPACITY 1
 #define SB_RESIZE_FACTOR 2
 #define GB_INIT_LENGTH 1
@@ -320,7 +326,39 @@ int main(void)
   curr_cursor = gb_get_cursor(&gb);
   assertm(curr_cursor == 3, "Expected: 3, Received: %zu", curr_cursor);
 
+  gb_deinit(&gb);
 
+  /* gb_insert_buf tests */
+
+  gb_init(&gb);
+
+  char buf_arr2[] = {'l', 'i', 'n', 'e', ' ', '0', '\n'};
+  size_t buf_arr2_sz = sizeof(buf_arr2)/sizeof(buf_arr2[0]);
+  fl_content_t fc = fl_read_file_str("./tests/mocks/simple.txt", "r");
+
+  assertm(fc.is_valid, "Expected: valid file contents read from disk, Received: Error: %s", fc.err_msg);
+  gb_insert_buf(&gb, fc.contents, fc.size);
+  buf_cstr = gb_buf_as_cstr(&gb);
+  assertm(strcmp(buf_cstr, (char *)fc.contents) == 0, "Expected: %s, Received: %s", (char *)fc.contents, buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == fc.size, "Expected: %zu, Received: %zu", fc.size, gb.length);
+  curr_cursor = gb_get_cursor(&gb);
+  assertm(curr_cursor == fc.size, "Expected: %zu, Received: %zu", fc.size, curr_cursor);
+
+  gb_move_cursor(&gb, -10000);
+  gb_insert_buf(&gb, buf_arr2, buf_arr2_sz);
+  buf_cstr = gb_buf_as_cstr(&gb);
+
+  sb_t temp_sb = {0};
+  sb_append(&temp_sb, "line 0\n", (char *)fc.contents);
+  assertm(strcmp(buf_cstr, temp_sb.str) == 0, "Expected: %s, Received: %s", (char *)fc.contents, buf_cstr);
+  free(buf_cstr);
+  assertm(gb.length == (fc.size + buf_arr2_sz), "Expected: %zu, Received: %zu", (fc.size + buf_arr2_sz), gb.length);
+  curr_cursor = gb_get_cursor(&gb);
+  assertm(curr_cursor == buf_arr2_sz, "Expected: %zu, Received: %zu", buf_arr2_sz, curr_cursor);
+
+  sb_deinit(&temp_sb);
+  fc_deinit(&fc);
   gb_deinit(&gb);
 
   // ---- END GAP BUFFER TESTS ----
