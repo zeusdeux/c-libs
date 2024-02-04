@@ -32,7 +32,21 @@ test_zdx_str_dbg:
 	@echo "--- Checking for memory zdx_str.h leaks ---"
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_str_test_dbg
 
-test: test_zdx_da test_zdx_str
+test_zdx_gap_buffer:
+	@echo "--- Running tests on zdx_gap_buffer.h release ---"
+	@clang $(TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test && ./tests/zdx_gap_buffer_test
+	@echo "--- Checking for memory zdx_gap_buffer.h leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit -- ./tests/zdx_gap_buffer_test
+
+test_zdx_gap_buffer_dbg:
+	@echo "--- Running tests on zdx_gap_buffer.h debug ---"
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test_dbg && ./tests/zdx_gap_buffer_test_dbg
+	@echo "--- Checking for memory zdx_gap_buffer.h leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_gap_buffer_test_dbg
+
+test: test_zdx_da test_zdx_str test_zdx_gap_buffer
+
+test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg
 
 clean:
 	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
