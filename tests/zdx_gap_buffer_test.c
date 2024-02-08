@@ -271,6 +271,56 @@ int main(void)
   fc_deinit(&fc);
   gb_deinit(&gb);
 
+  /* gb_copy_chars_as_cstr tests */
+
+  gb_init(&gb);
+
+  gb_insert_cstr(&gb, "hello, world!");
+  char *copied = gb_copy_chars_as_cstr(&gb, 0);
+  assertm(copied == NULL, "Expected: NULL, Received: %s", copied);
+  copied = gb_copy_chars_as_cstr(&gb, 1000);
+  assertm(copied == NULL, "Expected: NULL, Received: %s", copied);
+
+  gb_move_cursor(&gb, -6);
+  copied = gb_copy_chars_as_cstr(&gb, 6);
+  assertm(strcmp(copied, "world!") == 0, "Expected: \"world!\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, -10000);
+  copied = gb_copy_chars_as_cstr(&gb, 12);
+  assertm(strcmp(copied, "hello, world") == 0, "Expected: \"hello, world\", Received: %s", copied);
+  free(copied);
+
+  copied = gb_copy_chars_as_cstr(&gb, 10000);
+  assertm(strcmp(copied, "hello, world!") == 0, "Expected: \"hello, world!\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, 5);
+  copied = gb_copy_chars_as_cstr(&gb, -5);
+  assertm(strcmp(copied, "hello") == 0, "Expected: \"hello\", Received: %s", copied);
+  free(copied);
+
+  copied = gb_copy_chars_as_cstr(&gb, -500);
+  assertm(strcmp(copied, "hello") == 0, "Expected: \"hello\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, -1);
+  copied = gb_copy_chars_as_cstr(&gb, -5);
+  assertm(strcmp(copied, "hell") == 0, "Expected: \"hell\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, -4);
+  copied = gb_copy_chars_as_cstr(&gb, -0);
+  assertm(copied == NULL, "Expected: \"hello\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, 7);
+  copied = gb_copy_chars_as_cstr(&gb, -5);
+  assertm(strcmp(copied, "llo, ") == 0, "Expected: \"llo, \", Received: %s", copied);
+  free(copied);
+
+  gb_deinit(&gb);
+
   // ---- END GAP BUFFER TESTS ----
 
   log(L_INFO, "<zdx_gap_buffer_test> All ok!\n");

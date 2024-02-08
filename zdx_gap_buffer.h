@@ -68,6 +68,7 @@ void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count); /* count +ve -> delete, count -ve -> backspace */
 size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
+char *gb_copy_chars_as_cstr(gb_t gb[const static 1], int64_t count);
 
 #endif // ZDX_GAP_BUFFER_
 
@@ -408,6 +409,69 @@ size_t gb_get_cursor(gb_t gb[const static 1])
   gb_assert_validity(gb);
 
   return gb->gap_start_;
+}
+
+/* count +ve -> copy count chars from cursor to [cursor + count] */
+/* count -ve -> copy count chars from [cursor - count] to cursor */
+char *gb_copy_chars_as_cstr(gb_t gb[const static 1], const int64_t count)
+{
+  gb_dbg(">>", gb);
+  dbg(">> count %lld", count);
+  gb_assert_validity(gb);
+
+  char *empty = NULL;
+
+  if (count != 0) {
+    const size_t curr_cursor = gb_get_cursor(gb);
+
+    if (count < 0) {
+      /* trying to copy count chars backwards when cursor is at beginning of buf */
+      if (curr_cursor <= 0) {
+        gb_dbg("<<", gb);
+        dbg("<< returning %s", empty);
+
+        return empty;
+      }
+
+      size_t bounded_count = ((int64_t)curr_cursor + count) < 0 ? curr_cursor : llabs(count);
+      dbg("!! copy left \t| chars copy count %zu", bounded_count);
+
+      char *str = GB_REALLOC(NULL, (bounded_count + 1) * sizeof(char));
+      const void *src = gb->buf + (curr_cursor - bounded_count);
+      memcpy(str, src, bounded_count);
+
+      str[bounded_count] = '\0';
+
+      gb_dbg("<<", gb);
+      dbg("<< returning %s", str);
+      return str;
+    } else {
+      /* trying to copy count chars forwards when cursor is at end of buf */
+      if (curr_cursor >= gb->length) {
+        gb_dbg("<<", gb);
+        dbg("<< returning %s", empty);
+
+        return empty;
+      }
+
+      size_t bounded_count = ((size_t)count) > (gb->length - curr_cursor) ? (gb->length - curr_cursor) : llabs(count);
+      dbg("!! copy right \t| chars copy count %zu", bounded_count);
+
+      char *str = GB_REALLOC(NULL, (bounded_count + 1) * sizeof(char));
+      const void *src = gb->buf + gb->gap_end_;
+      memcpy(str, src, bounded_count);
+
+      str[bounded_count] = '\0';
+
+      gb_dbg("<<", gb);
+      dbg("<< returning %s", str);
+      return str;
+    }
+  }
+
+  gb_dbg("<<", gb);
+  dbg("<< returning %s", empty);
+  return empty;
 }
 
 #endif // ZDX_GAP_BUFFER_IMPLEMENTATION
