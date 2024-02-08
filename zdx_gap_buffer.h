@@ -45,11 +45,11 @@
 #endif // GB_ASSERT
 
 #ifndef GB_INIT_LENGTH
-#define GB_INIT_LENGTH 1024 // sizeof(char) * 1024
+#define GB_INIT_LENGTH 1024 /* sizeof(char) * 1024 */
 #endif // GB_INIT_LENGTH
 
 #ifndef GB_MIN_GAP_SIZE
-#define GB_MIN_GAP_SIZE 16 // sizeof(char) * 16
+#define GB_MIN_GAP_SIZE 16 /* sizeof(char) * 16 */
 #endif // GB_MIN_GAP_SIZE
 
 typedef struct gap_buffer {
@@ -61,11 +61,11 @@ typedef struct gap_buffer {
 
 void gb_init(gb_t gb[const static 1]);
 void gb_deinit(gb_t gb[const static 1]);
-void gb_move_cursor(gb_t gb[const static 1], const int64_t pos); // pos +ve -> move right, pos -ve -> move left
+void gb_move_cursor(gb_t gb[const static 1], const int64_t pos); /* pos +ve -> move right, pos -ve -> move left */
 void gb_insert_char(gb_t gb[const static 1], const char c);
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
 void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
-void gb_delete_chars(gb_t gb[const static 1], const int64_t count); // count +ve -> delete, count -ve -> backspace
+void gb_delete_chars(gb_t gb[const static 1], const int64_t count); /* count +ve -> delete, count -ve -> backspace */
 size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
 
