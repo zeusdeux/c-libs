@@ -6,5 +6,7 @@
 !tests
 !tests/zdx_*.c
 !tests/zdx_*.h
+!**/mocks
+!**/mocks/**
 !*.md
 !LICENSE
