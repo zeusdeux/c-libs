@@ -1,3 +1,27 @@
+/**
+ * MIT License
+ *
+ * Copyright (c) 2024 Mudit
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
 #ifndef ZDX_GAP_BUFFER_
 #define ZDX_GAP_BUFFER_
 
@@ -37,7 +61,7 @@ typedef struct gap_buffer {
 
 void gb_init(gb_t gb[const static 1]);
 void gb_deinit(gb_t gb[const static 1]);
-void gb_move_cursor(gb_t gb[const static 1], const int64_t pos);
+void gb_move_cursor(gb_t gb[const static 1], const int64_t pos); // pos +ve -> move right, pos -ve -> move left
 void gb_insert_char(gb_t gb[const static 1], const char c);
 void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
 void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
@@ -72,13 +96,13 @@ char *gb_buf_as_cstr(const gb_t gb[const static 1]);
   } while(0)
 
 #define gb_gap_len(gb) ((gb)->gap_end_ - (gb)->gap_start_)
-#define gb_len_with_gap(gb) ((gb)->length + gb_gap_len(gb))
+#define gb_buf_len_with_gap(gb) ((gb)->length + gb_gap_len(gb))
 
 static char *gb_buf_as_dbg_cstr(const gb_t gb[const static 1])
 {
   gb_assert_validity(gb);
 
-  size_t buf_len_with_gap = gb_len_with_gap(gb);
+  size_t buf_len_with_gap = gb_buf_len_with_gap(gb);
   char *str = GB_REALLOC(NULL, (buf_len_with_gap + 1) * sizeof(char));
   GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
 
@@ -158,7 +182,7 @@ char *gb_buf_as_cstr(const gb_t gb[const static 1])
   char *str = GB_REALLOC(NULL, (gb->length + 1) * sizeof(char));
   GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
 
-  size_t buf_len_with_gap = gb_len_with_gap(gb);
+  size_t buf_len_with_gap = gb_buf_len_with_gap(gb);
 
   for (size_t i = 0, j = 0; i < buf_len_with_gap; i++) {
     if (i < gb->gap_start_ || i >= gb->gap_end_) {
@@ -358,7 +382,7 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
   /* delete */
   if (count > 0) {
     int64_t new_gap_end = gb->gap_end_ + count;
-    new_gap_end = new_gap_end > ((int64_t) gb_len_with_gap(gb)) ? gb_len_with_gap(gb) : new_gap_end;
+    new_gap_end = new_gap_end > ((int64_t) gb_buf_len_with_gap(gb)) ? gb_buf_len_with_gap(gb) : new_gap_end;
 
     dbg("-- delete count %lld \t| gap end %zu \t| new gap end %lld", count, gb->gap_end_, new_gap_end);
     gb->length = gb->length - (new_gap_end - gb->gap_end_);
