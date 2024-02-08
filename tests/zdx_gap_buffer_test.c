@@ -182,10 +182,11 @@ int main(void)
   free(buf_cstr);
   assertm(gb.length == 9, "Expected: 9, Received: %zu", gb.length);
 
-  gb_move_cursor(&gb, 1000);
+  gb_move_cursor(&gb, -1000);
+  gb_move_cursor(&gb, 5);
   gb_insert_cstr(&gb, "!!");
   buf_cstr = gb_buf_as_cstr(&gb);
-  assertm(strcmp(buf_cstr, "12345abcd!!") == 0, "Expected: \"12345abcd!!\", Received: %s", buf_cstr);
+  assertm(strcmp(buf_cstr, "12345!!abcd") == 0, "Expected: \"12345!!abcd\", Received: %s", buf_cstr);
   free(buf_cstr);
   assertm(gb.length == 11, "Expected: 11, Received: %zu", gb.length);
 

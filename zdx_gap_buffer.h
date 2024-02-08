@@ -285,7 +285,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
     dbg("!! move right")
     const void *src = (void *)(gb->buf + gb->gap_end_);
     void *dst = (void *)(gb->buf + gb->gap_start_);
-    memmove(dst, src, gb->length - gb->gap_start_);
+    memmove(dst, src, new_gap_start - gb->gap_start_);
 
     gb->gap_start_ = new_gap_start;
     gb->gap_end_ = new_gap_start + curr_gap_len;
