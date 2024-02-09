@@ -68,7 +68,7 @@ void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count); /* count +ve -> delete, count -ve -> backspace */
 size_t gb_get_cursor(gb_t gb[const static 1]);
 char *gb_buf_as_cstr(const gb_t gb[const static 1]);
-char *gb_copy_chars_as_cstr(gb_t gb[const static 1], int64_t count);
+char *gb_copy_chars_as_cstr(gb_t gb[const static 1], int64_t count); /* count +ve -> copy from cursor right, count -ve -> copy from cursor left*/
 
 #endif // ZDX_GAP_BUFFER_
 

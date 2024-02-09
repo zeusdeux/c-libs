@@ -311,12 +311,26 @@ int main(void)
 
   gb_move_cursor(&gb, -4);
   copied = gb_copy_chars_as_cstr(&gb, -0);
-  assertm(copied == NULL, "Expected: \"hello\", Received: %s", copied);
+  assertm(copied == NULL, "Expected: \"NULL\", Received: %s", copied);
   free(copied);
 
   gb_move_cursor(&gb, 7);
   copied = gb_copy_chars_as_cstr(&gb, -5);
   assertm(strcmp(copied, "llo, ") == 0, "Expected: \"llo, \", Received: %s", copied);
+  free(copied);
+
+  gb_delete_chars(&gb, -7);
+  copied = gb_copy_chars_as_cstr(&gb, -5);
+  assertm(copied == NULL, "Expected: \"NULL\", Received: %s", copied);
+  free(copied);
+
+  copied = gb_copy_chars_as_cstr(&gb, 5);
+  assertm(strcmp(copied, "world") == 0, "Expected: \"world\", Received: %s", copied);
+  free(copied);
+
+  gb_move_cursor(&gb, 7);
+  copied = gb_copy_chars_as_cstr(&gb, -5);
+  assertm(strcmp(copied, "orld!") == 0, "Expected: \"orld!\", Received: %s", copied);
   free(copied);
 
   gb_deinit(&gb);
