@@ -27,6 +27,7 @@ typedef struct file_content {
  * It returns a char* that must be freed by the caller
  */
 fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode);
+void fc_deinit(fl_content_t *fc);
 
 #endif // ZDX_FILE_H_
 
@@ -66,7 +67,9 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   FILE *f = fopen(path, mode);
 
   if (f == NULL) {
+    fclose(f);
     fc.is_valid = false;
+
     fc_dbg("<<", fc);
     return fc;
   }
@@ -75,8 +78,10 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   struct stat s;
 
   if (fstat(fileno(f), &s) != 0) {
+    fclose(f);
     fc.is_valid = false;
     fc.err_msg = strerror(errno);
+
     fc_dbg("<<", fc);
     return fc;
   }
@@ -87,8 +92,10 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   fclose(f);
 
   if (ferror(f)) {
+    FL_FREE(contents_buf);
     fc.is_valid = false;
     fc.err_msg = "Reading file failed";
+
     fc_dbg("<<", fc);
     return fc;
   }
