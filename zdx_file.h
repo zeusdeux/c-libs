@@ -69,6 +69,7 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   if (f == NULL) {
     fclose(f);
     fc.is_valid = false;
+    fc.err_msg = strerror(errno);
 
     fc_dbg("<<", fc);
     return fc;
