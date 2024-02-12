@@ -56,7 +56,7 @@ bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
 sv_t sv_trim_left(sv_t sv);
 sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
-sv_t sv_split_by_char(sv_t *sv, char delim);
+sv_t sv_split_by_char(sv_t *const sv, char delim);
 
 #endif // ZDX_STRING_VIEW_H_
 
@@ -171,7 +171,7 @@ sv_t sv_trim(sv_t sv)
   return sv_trim_right(sv_trim_left(sv));
 }
 
-sv_t sv_split_by_char(sv_t *sv, char delim)
+sv_t sv_split_by_char(sv_t *const sv, char delim)
 {
   sv_dbg(">>", *sv);
   dbg(">> delimiter '%c'", delim);
