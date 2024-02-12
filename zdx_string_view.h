@@ -59,6 +59,8 @@ sv_t sv_trim_left(sv_t sv);
 sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
 sv_t sv_split_by_char(sv_t *const sv, char delim);
+sv_t sv_split_from_idx(sv_t *const sv, const size_t from); /* including idx from */
+sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* including idx until */
 
 #endif // ZDX_STRING_VIEW_H_
 
@@ -82,12 +84,13 @@ typedef struct string_view {
 #define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" \t| length %zu", (label), sv_fmt_args(sv), (sv).length)
 #define sv_assert_validity(sv) {                                                                           \
     SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf);  \
+    SV_ASSERT((sv).length >= 0, "Expected: positive length string view, Received: %zu", (sv).length);  \
   } while(0)
 
 
 sv_t sv_from_buf(const char* buf, const size_t len)
 {
-  dbg(">> buf %.*s", len, buf);
+  dbg(">> buf %.*s", (int)len, buf);
   SV_ASSERT(buf != NULL, "Expected: input buffer to be not-NULL, Received: %p", (void *)buf);
 
   sv_t sv = {
@@ -101,7 +104,7 @@ sv_t sv_from_buf(const char* buf, const size_t len)
 
 sv_t sv_from_cstr(const char* str)
 {
-  dbg(">> cstr %s", str);
+  dbg(">> cstr \"%s\"", str);
 
   sv_t sv = {
     .buf = str,
@@ -156,11 +159,13 @@ sv_t sv_trim_right(sv_t sv)
   sv_dbg(">>", sv);
   sv_assert_validity(sv);
 
-  for (size_t i = (sv.length - 1); i >= 0; i--) {
-    if (!isspace(sv.buf[i])) {
-      sv_t new_sv = { .buf = sv.buf, .length = i + 1 };
-      sv_dbg("<<", new_sv);
-      return new_sv;
+  if (sv.length > 0) {
+    for (size_t i = (sv.length - 1); i >= 0; i--) {
+      if (!isspace(sv.buf[i])) {
+        sv_t new_sv = { .buf = sv.buf, .length = i + 1 };
+        sv_dbg("<<", new_sv);
+        return new_sv;
+      }
     }
   }
 
@@ -198,5 +203,34 @@ sv_t sv_split_by_char(sv_t *const sv, char delim)
   return split;
 }
 
+sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including idx */
+{
+  sv_dbg(">>", *sv);
+  dbg(">> split from index %zu", from);
+  sv_assert_validity(*sv);
+
+  sv_t split = { .buf = sv->buf, .length = 0 };
+
+  if (sv->length != 0) {
+    const size_t offset = from >= sv->length ? sv->length : from;
+    const size_t len = from >= sv->length ? 0 : (sv->length - from);
+
+    sv_t split = {
+      .buf = sv->buf + offset,
+      .length = len,
+    };
+
+    sv->length = offset;
+
+    sv_dbg("<< updated input", *sv);
+    sv_dbg("<< split chunk", split);
+    return split;
+  }
+
+  sv_dbg("<<", split);
+  return split;
+}
+
+sv_t sv_split_until_idx(sv_t *const sv, const size_t idx); /* including idx */
 
 #endif // ZDX_STRING_VIEW_IMPLEMENTATION

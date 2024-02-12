@@ -3,7 +3,6 @@
 
 #pragma GCC diagnostic error "-Wnonnull"
 #pragma GCC diagnostic error "-Wnull-dereference"
-#pragma GCC diagnostic error "-Wsign-conversion"
 
 #include <stdlib.h>
 #include <stdbool.h>

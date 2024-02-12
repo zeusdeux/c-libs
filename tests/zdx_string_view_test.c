@@ -1,4 +1,3 @@
-#include <string.h>
 #include "../zdx_util.h"
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "../zdx_string_view.h"
@@ -73,6 +72,29 @@ int main(void)
 
     sv = sv_from_cstr("");
     chunk = sv_split_by_char(&sv, ',');
+    expected_chunk = sv_from_cstr("");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
+  }
+
+  /* sv_split_from_idx */
+  {
+    const char *str = "hello, world,\nomg test";
+    sv_t sv = sv_from_cstr(str);
+    sv_t chunk, expected_chunk;
+
+    chunk = sv_split_from_idx(&sv, 100);
+    expected_chunk = sv_from_cstr("");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: \""SV_FMT"\"", sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, str), "Expected: \"%s\", Received: "SV_FMT, str, sv_fmt_args(sv));
+
+    chunk = sv_split_from_idx(&sv, 7);
+    expected_chunk = sv_from_cstr("world,\nomg test");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, "hello, "), "Expected: \"hello, \", Received: "SV_FMT, sv_fmt_args(sv));
+
+    sv = sv_from_cstr("");
+    chunk = sv_split_from_idx(&sv, 100);
     expected_chunk = sv_from_cstr("");
     assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
