@@ -1,0 +1,182 @@
+/**
+ * MIT License
+ *
+ * Copyright (c) 2024 Mudit
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
+/**
+ * THIS LIBRARY SHOULD NEVER ALLOCATE!
+ * It should only provide readonly views of the underlying buffer.
+ * Also, it should use only automatic storage so no pointers
+ * should be passed in to any functions unless the function needs to
+ * "return" multiple values by side effecting the incoming
+ * string_view value - for e.g., sv_split_by_char that returns the
+ * first split chunk and also updates the incoming sv_t value to point
+ * after the chunk that was split out.
+ * Keep it simple!
+ */
+#ifndef ZDX_STRING_VIEW_H_
+#define ZDX_STRING_VIEW_H_
+
+#include <stddef.h>
+#include <stdbool.h>
+
+typedef struct string_view sv_t;
+
+#define SV_FMT "%.*s"
+#define sv_fmt_args(sv) (int)(sv).length, (sv).buf
+
+sv_t sv_from_cstr(const char* str);
+bool sv_eq_cstr(sv_t sv, const char *str);
+bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
+sv_t sv_trim_left(sv_t sv);
+sv_t sv_trim_right(sv_t sv);
+sv_t sv_trim(sv_t sv);
+sv_t sv_split_by_char(sv_t *sv, char delim);
+sv_t sv_split_at_idx(sv_t *sv, size_t idx);
+
+#endif // ZDX_STRING_VIEW_H_
+
+#define ZDX_STRING_VIEW_IMPLEMENTATION
+#ifdef ZDX_STRING_VIEW_IMPLEMENTATION
+
+#include <ctype.h>
+#include <string.h>
+#include "./zdx_util.h"
+
+#ifndef SV_ASSERT
+#define SV_ASSERT assertm
+#endif // SV_ASSERT
+
+typedef struct string_view {
+  const char *buf;
+  size_t length;
+} sv_t;
+
+#define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" \t| length %zu", (label), sv_fmt_args(sv), (sv).length)
+#define sv_assert_validity(sv) {                                                                           \
+    SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf);  \
+  } while(0)
+
+sv_t sv_from_cstr(const char* str)
+{
+  dbg(">> cstr %s", str);
+
+  sv_t sv = {
+    .buf = str,
+    .length = strlen(str)
+  };
+
+  sv_dbg("<<", sv);
+  return sv;
+}
+
+bool sv_eq_cstr(sv_t sv, const char *str)
+{
+  sv_assert_validity(sv);
+
+  const size_t input_str_len = strlen(str);
+
+  if (input_str_len == sv.length && memcmp(sv.buf, str, sv.length) == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
+{
+  if (sv1.length == sv2.length && memcmp(sv1.buf, sv2.buf, sv1.length) == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+sv_t sv_trim_left(sv_t sv)
+{
+  sv_dbg(">>", sv);
+  sv_assert_validity(sv);
+
+  for (size_t i = 0; i < sv.length; i++) {
+    if (!isspace(sv.buf[i])) {
+      sv_t new_sv = { .buf = (sv.buf + i), .length = (sv.length - i) };
+      sv_dbg("<<", new_sv);
+      return new_sv;
+    }
+  }
+
+  return sv;
+  sv_dbg("<<", sv);
+}
+
+sv_t sv_trim_right(sv_t sv)
+{
+  sv_dbg(">>", sv);
+  sv_assert_validity(sv);
+
+  for (size_t i = (sv.length - 1); i >= 0; i--) {
+    if (!isspace(sv.buf[i])) {
+      sv_t new_sv = { .buf = sv.buf, .length = i + 1 };
+      sv_dbg("<<", new_sv);
+      return new_sv;
+    }
+  }
+
+  sv_dbg("<<", sv);
+  return sv;
+}
+
+sv_t sv_trim(sv_t sv)
+{
+  return sv_trim_right(sv_trim_left(sv));
+}
+
+sv_t sv_split_by_char(sv_t *sv, char delim)
+{
+  sv_dbg(">>", *sv);
+  dbg(">> delimiter '%c'", delim);
+  sv_assert_validity(*sv);
+
+  sv_t split = { .buf = sv->buf, .length = 0 };
+
+  for (size_t i = 0; i < sv->length; i++) {
+    if (sv->buf[i] == delim) {
+      sv->buf = sv->buf + i;
+      sv->length = sv->length - i;
+
+      split.length = i;
+
+      sv_dbg("<< chunk", split);
+      sv_dbg("<< input", *sv);
+      return split;
+    }
+  }
+
+  sv_dbg("<<", split);
+  return split;
+}
+
+sv_t sv_split_at_idx(sv_t *sv, size_t idx);
+
+
+#endif // ZDX_STRING_VIEW_IMPLEMENTATION
