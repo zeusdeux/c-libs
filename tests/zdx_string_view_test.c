@@ -70,7 +70,6 @@ int main(void)
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
   }
 
-
   log(L_INFO, "<zdx_string_view_test> All ok!\n");
   return 0;
 }

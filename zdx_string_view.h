@@ -40,6 +40,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+/**
+ * opaque type as we don't want any consumers to directly initialize this
+ * struct but rather only consume it from one of the functions below
+ **/
 typedef struct string_view sv_t;
 
 #define SV_FMT "%.*s"
@@ -52,17 +56,17 @@ sv_t sv_trim_left(sv_t sv);
 sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
 sv_t sv_split_by_char(sv_t *sv, char delim);
-sv_t sv_split_at_idx(sv_t *sv, size_t idx);
 
 #endif // ZDX_STRING_VIEW_H_
 
-#define ZDX_STRING_VIEW_IMPLEMENTATION
 #ifdef ZDX_STRING_VIEW_IMPLEMENTATION
 
 #include <ctype.h>
 #include <string.h>
 #include "./zdx_util.h"
 
+/* These defines should only be overriden in the file */
+/* that includes the implementation */
 #ifndef SV_ASSERT
 #define SV_ASSERT assertm
 #endif // SV_ASSERT
@@ -166,8 +170,8 @@ sv_t sv_split_by_char(sv_t *sv, char delim)
 
       split.length = i;
 
-      sv_dbg("<< chunk", split);
-      sv_dbg("<< input", *sv);
+      sv_dbg("<< updated input", *sv);
+      sv_dbg("<< split chunk", split);
       return split;
     }
   }
@@ -175,8 +179,6 @@ sv_t sv_split_by_char(sv_t *sv, char delim)
   sv_dbg("<<", split);
   return split;
 }
-
-sv_t sv_split_at_idx(sv_t *sv, size_t idx);
 
 
 #endif // ZDX_STRING_VIEW_IMPLEMENTATION
