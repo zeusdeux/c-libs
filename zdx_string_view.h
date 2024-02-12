@@ -49,6 +49,7 @@ typedef struct string_view sv_t;
 #define SV_FMT "%.*s"
 #define sv_fmt_args(sv) (int)(sv).length, (sv).buf
 
+sv_t sv_from_buf(const char* buf, const size_t len);
 sv_t sv_from_cstr(const char* str);
 bool sv_eq_cstr(sv_t sv, const char *str);
 bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
@@ -80,6 +81,21 @@ typedef struct string_view {
 #define sv_assert_validity(sv) {                                                                           \
     SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf);  \
   } while(0)
+
+
+sv_t sv_from_buf(const char* buf, const size_t len)
+{
+  dbg(">> buf %.*s", len, buf);
+  SV_ASSERT(buf != NULL, "Expected: input buffer to be not-NULL, Received: %p", (void *)buf);
+
+  sv_t sv = {
+    .buf = buf,
+    .length = len
+  };
+
+  sv_dbg("<<", sv);
+  return sv;
+}
 
 sv_t sv_from_cstr(const char* str)
 {

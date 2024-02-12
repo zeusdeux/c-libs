@@ -6,6 +6,14 @@
 
 int main(void)
 {
+  /* sv_from_buf */
+  {
+    const char buf[] = { 'a', 'b', 'c', 'd', 'f', '\t', 'g', 'h', '\n', 'i', 'j', 'k' };
+    const char *buf_as_cstr = "abcdf\tgh\nijk";
+    sv_t sv = sv_from_buf(buf, sizeof(buf));
+    assertm(sv_eq_cstr(sv, buf_as_cstr), "Expected: \"%s\", Received: "SV_FMT, buf_as_cstr, sv_fmt_args(sv));
+  }
+
   /* sv_trim_left */
   {
     sv_t sv = sv_from_cstr(" \n\r\n\t   hello\n\t  \r\n");
