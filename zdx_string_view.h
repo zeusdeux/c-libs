@@ -37,6 +37,8 @@
 #ifndef ZDX_STRING_VIEW_H_
 #define ZDX_STRING_VIEW_H_
 
+#pragma GCC diagnostic error "-Wsign-conversion"
+
 #include <stddef.h>
 #include <stdbool.h>
 
