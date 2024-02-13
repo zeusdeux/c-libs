@@ -60,7 +60,7 @@ sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
 sv_t sv_split_by_char(sv_t *const sv, char delim);
 sv_t sv_split_from_idx(sv_t *const sv, const size_t from); /* including idx from */
-sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* including idx until */
+sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx until */
 
 #endif // ZDX_STRING_VIEW_H_
 
@@ -203,7 +203,7 @@ sv_t sv_split_by_char(sv_t *const sv, char delim)
   return split;
 }
 
-sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including idx */
+sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including index (from) */
 {
   sv_dbg(">>", *sv);
   dbg(">> split from index %zu", from);
@@ -212,8 +212,8 @@ sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including idx */
   sv_t split = { .buf = sv->buf, .length = 0 };
 
   if (sv->length != 0) {
-    const size_t offset = from >= sv->length ? sv->length : from;
-    const size_t len = from >= sv->length ? 0 : (sv->length - from);
+    const size_t offset = from > sv->length ? sv->length : from;
+    const size_t len = from > sv->length ? 0 : (sv->length - from);
 
     sv_t split = {
       .buf = sv->buf + offset,
@@ -231,6 +231,32 @@ sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including idx */
   return split;
 }
 
-sv_t sv_split_until_idx(sv_t *const sv, const size_t idx); /* including idx */
+sv_t sv_split_until_idx(sv_t *const sv, const size_t until) /* excluding index (until) */
+{
+  sv_dbg(">>", *sv);
+  dbg(">> split until index %zu", until);
+  sv_assert_validity(*sv);
+
+  sv_t split = { .buf = sv->buf, .length = 0 };
+
+  if (sv->length != 0) {
+    const size_t len = until > sv->length ? sv->length : until;
+
+    sv_t split = {
+      .buf = sv->buf,
+      .length = len
+    };
+
+    sv->buf = sv->buf + len;
+    sv->length = sv->length - len;
+
+    sv_dbg("<< updated input", *sv);
+    sv_dbg("<< split chunk", split);
+    return split;
+  }
+
+  sv_dbg("<<", split);
+  return split;
+}
 
 #endif // ZDX_STRING_VIEW_IMPLEMENTATION

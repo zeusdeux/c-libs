@@ -77,7 +77,7 @@ int main(void)
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
   }
 
-  /* sv_split_from_idx */
+  /* sv_split_from_idx (includes idx) */
   {
     const char *str = "hello, world,\nomg test";
     sv_t sv = sv_from_cstr(str);
@@ -95,6 +95,30 @@ int main(void)
 
     sv = sv_from_cstr("");
     chunk = sv_split_from_idx(&sv, 100);
+    expected_chunk = sv_from_cstr("");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
+  }
+
+  /* sv_split_until_idx (excludes idx) */
+  {
+    const char *str = "hello, world,\nomg test";
+    sv_t sv = sv_from_cstr(str);
+    sv_t chunk, expected_chunk;
+
+    chunk = sv_split_until_idx(&sv, 100);
+    expected_chunk = sv_from_cstr("hello, world,\nomg test");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: \""SV_FMT"\"", sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, ""), "Expected: \"%s\", Received: "SV_FMT, str, sv_fmt_args(sv));
+
+    sv = sv_from_cstr(str);
+    chunk = sv_split_until_idx(&sv, 14);
+    expected_chunk = sv_from_cstr("hello, world,\n");
+    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(sv_eq_cstr(sv, "omg test"), "Expected: \"mg test\", Received: "SV_FMT, sv_fmt_args(sv));
+
+    sv = sv_from_cstr("");
+    chunk = sv_split_until_idx(&sv, 100);
     expected_chunk = sv_from_cstr("");
     assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
