@@ -56,10 +56,22 @@ test_zdx_string_view_dbg:
 	@echo "--- Checking for memory zdx_string_view.h leaks ---"
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_string_view_test_dbg
 
+test_zdx_simple_arena:
+	@echo "--- Running tests on zdx_simple_arena.h release ---"
+	@clang $(TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test && ./tests/zdx_simple_arena_test
+	@echo "--- Checking for memory zdx_simple_arena.h leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit -- ./tests/zdx_simple_arena_test
 
-test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view
+test_zdx_simple_arena_dbg:
+	@echo "--- Running tests on zdx_simple_arena.h debug ---"
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test_dbg && ./tests/zdx_simple_arena_test_dbg
+	@echo "--- Checking for memory zdx_simple_arena.h leaks ---"
+	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_simple_arena_test_dbg
 
-test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg
+
+test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena
+
+test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg test_zdx_simple_arena_dbg
 
 clean:
 	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
