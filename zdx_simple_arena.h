@@ -49,6 +49,7 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* c
 #include <stddef.h>
 #include <stdint.h>
 
+#define SA_DEFAULT_PAGE_SIZE_IF_UNDEF 4096
 /* Nothing that allocates should be included in non-debug builds */
 #if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
 #include <stdio.h>
@@ -72,12 +73,33 @@ typedef struct Arena {
 #include <unistd.h>
 #include <sys/mman.h>
 
+static inline size_t round_up_to_page_size_(size_t sz)
+{
+  long page_size = sysconf(_SC_PAGESIZE);
+  dbg(">> size %zu \t| system page size %ld", sz, page_size);
+
+  if (page_size < 0) {
+    dbg("<< system page size %ld \t| sysconf failed", page_size);
+    return 0;
+  }
+  page_size = page_size == 0 ? SA_DEFAULT_PAGE_SIZE_IF_UNDEF : page_size; /* this should never really happen but guarding just in case */
+  size_t rounded_up_sz = sz < (size_t)page_size ? (size_t)page_size : ((sz / (size_t)page_size) + 1) * (size_t)page_size;
+
+  dbg("<< rounded up size %zu", rounded_up_sz);
+  return rounded_up_sz;
+}
+
 arena_t arena_create(size_t sz)
 {
   arena_t ar = {0};
-  long page_size = sysconf(_SC_PAGESIZE);
 
-  sz = sz < (size_t)page_size ? (size_t)page_size : ((sz / (size_t)page_size) + 1) * (size_t)page_size;
+  if (!(sz = round_up_to_page_size_(sz))) {
+    dbg("<< rounded arena size %zu \t| rounding failed", sz);
+    ar.is_valid = false;
+    ar.arena = NULL;
+    return ar;
+  }
+
   dbg(">> size %zu \t| sys page size %ld", sz, page_size);
 
   /* MAP_PRIVATE or MAP_SHARED must always be specified */

@@ -8,8 +8,8 @@
 
 int main(void)
 {
-  long sys_page_size = sysconf(_SC_PAGESIZE);
-  arena_t arena = arena_create(4098);
+  size_t requested_arena_size = 4098;
+  arena_t arena = arena_create(requested_arena_size);
 
   /* arena_create */
   {
@@ -18,7 +18,7 @@ int main(void)
     }
     assertm(arena.is_valid, "Expected: valid arena to be created, Received: false");
     assertm(arena.arena != NULL, "Expected: non-NULL arena addr, Received: %p", arena.arena);
-    size_t expected_arena_size = (size_t)(sys_page_size * 2);
+    size_t expected_arena_size = round_up_to_page_size_(requested_arena_size);
     assertm(arena.size == expected_arena_size, "Expected: %ld, Received: %zu", expected_arena_size, arena.size);
     assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
   }
