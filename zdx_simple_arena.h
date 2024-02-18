@@ -257,9 +257,6 @@ void *arena_alloc(arena_t *const ar, const size_t sz)
     ar->offset = ptr_offset + sz;
   }
 
-  /* clear errors if any as if we have reached here means we are all good */
-  ar->err = NULL;
-
   ar_dbg("<<", ar);
   dbg("<< ptr %p", (void *)ptr);
   return (void *)ptr;
