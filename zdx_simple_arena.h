@@ -266,6 +266,17 @@ void *arena_alloc(arena_t *const ar, const size_t sz)
   dbg("<< ptr %p", (void *)ptr);
   return (void *)ptr;
 }
+/* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
+void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
+{
+  dbg(">> count %zu \t| size %zu", count, sz);
+  size_t total_size = count * sz;
+  void *ptr = arena_alloc(ar, total_size);
+  // not zeroing memory as #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__) return zero-filled
+  // memory on MAP_ANONYMOUS
+  dbg("<< ptr %p", ptr);
+  return ptr;
+}
 
 #elif defined(_WIN32) || defined(_WIN64)
 /* No support for windows yet */
