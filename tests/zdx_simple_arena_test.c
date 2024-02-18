@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "../zdx_util.h"
+#define DEFAULT_ALIGNMENT 8 // to make sure tests work as expected across platforms
 #define ZDX_SIMPLE_ARENA_IMPLEMENTATION
 #include "../zdx_simple_arena.h"
 

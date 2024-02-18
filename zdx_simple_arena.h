@@ -172,8 +172,10 @@ bool arena_free(arena_t *const ar)
   return false;
 }
 
+/* this is to enable cross platform tests that assume an alignment */
+#ifndef DEFAULT_ALIGNMENT
 #define DEFAULT_ALIGNMENT sizeof(max_align_t)
-
+#endif
 
 /*
  * Unaligned memory accesses occur when you try to read N bytes of data
