@@ -48,6 +48,9 @@ int main(void)
       arena_t arena = arena_create(requested_arena_size);
       assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
+      /* 0 byte allocation */
+      // TODO
+
       /* 1 byte allocation */
       test_arena_alloc(&arena, 1, 1, 1);
       /* 2 bytes allocation */
@@ -109,6 +112,8 @@ int main(void)
       /* reset arena to proper state */
       arena.arena = arena_addr;
       arena.err = NULL;
+
+      // TODO: add test for size being larger than remaining space in arena
 
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
