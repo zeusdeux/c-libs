@@ -39,8 +39,8 @@ typedef struct Arena arena_t;
 arena_t arena_create(const size_t sz);
 bool arena_free(arena_t *const ar);
 void *arena_alloc(arena_t *const ar, const size_t sz); /* make sure to align addresses */
-void *arena_realloc(arena_t *const ar, void *ptr, const size_t sz); /* no idea what this should do tbh */
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
+void *arena_realloc(arena_t *const ar, void *ptr, const size_t sz); /* no idea what this should do tbh */
 
 #endif // ZDX_SIMPLE_ARENA_H_
 
@@ -51,6 +51,7 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* c
 
 /* Nothing that allocates should be included in non-debug builds */
 #if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
+#include <string.h> /* for memset in arena_create */
 #include <stdio.h>
 #include "./zdx_util.h"
 #define ar_dbg(label, ar) dbg("%s arena %p \t| size %zu \t| offset %zu (%p) \t| err %s",      \
@@ -141,6 +142,10 @@ arena_t arena_create(size_t sz)
     ar_dbg("<<", &ar);
     return ar;
   }
+
+#if defined(DEBUG)
+  memset(ar.arena, 0xcd, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
+#endif
 
   ar.err = NULL;
   ar.size = sz;
