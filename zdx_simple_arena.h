@@ -53,10 +53,11 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* c
 #if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
 #include <stdio.h>
 #include "./zdx_util.h"
-#define ar_dbg(label, ar) dbg("%s next %p \t|arena %p \t| size %zu \t| offset %zu \t| err %s",  \
-                              (label),                                                          \
-                              (void *)((uintptr_t)(ar)->arena + (ar)->offset),                  \
-                              (ar)->arena, (ar)->size, (ar)->offset, (ar)->err)
+#define ar_dbg(label, ar) dbg("%s arena %p \t| size %zu \t| offset %zu (%p) \t| err %s",      \
+                              (label),                                                        \
+                              (ar)->arena, (ar)->size,                                        \
+                              (ar)->offset, (void *)((uintptr_t)(ar)->arena + (ar)->offset),  \
+                              (ar)->err)
 #else
 #define ar_dbg(...)
 #endif

@@ -67,6 +67,8 @@ int main(void)
         char b;
       } two_chars;
       two_chars *t = arena_alloc(&arena, sizeof(two_chars));
+      assertm(!arena.err, "Expected: arena_alloc to succeed, Received: %s", arena.err);
+
       t->a = 'a';
       t->b = 'b';
       assertm(t->a == 'a', "Expected: 'a', Received: %c", t->a);
@@ -77,18 +79,35 @@ int main(void)
 
       log(L_INFO, "[ARENA ALLOC HAPPY PATH TESTS] OK!");
     }
+
     {
       arena_t arena = arena_create(requested_arena_size);
       assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
-      /* arena.size = -1; // this should trigger compiler error */
+      /* arena.size = -1; // this should trigger compiler error due to #pragma GCC diagnostic error "-Wsign-conversion" */
       size_t arena_sz = arena.size;
       arena.size = 0; // trigger error in arena_alloc
       int *i = arena_alloc(&arena, 4);
       (void) i;
-      assertm(arena.err, "Expected: Arena to show error: %s, Received: valid arena", arena.err);
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
       /* reset arena to proper state */
       arena.size = arena_sz;
+      arena.err = NULL;
+
+      /* arena.offset = -1; // this should trigger compiler error due to #pragma GCC diagnostic error "-Wsign-conversion" */
+      arena.offset = arena.size + 1; // trigger error in arena_alloc
+      i = arena_alloc(&arena, 4);
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      /* reset arena to proper state */
+      arena.offset = 0;
+      arena.err = NULL;
+
+      void *arena_addr = arena.arena;
+      arena.arena = NULL;
+      i = arena_alloc(&arena, 4);
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      /* reset arena to proper state */
+      arena.arena = arena_addr;
       arena.err = NULL;
 
       assertm(arena_free(&arena) && !arena.err,
@@ -104,7 +123,7 @@ int main(void)
 
 void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment)
 {
-  log(L_INFO, "[ARENA ALLOC TEST] size %zu, exp offset %zu, exp align %zu", sz, expected_offset, expected_alignment);
+  /* log(L_INFO, "[ARENA ALLOC TEST] size %zu, exp offset %zu, exp align %zu", sz, expected_offset, expected_alignment); */
   assertm(sz > 0, "Expected: test_arena_alloc called with size > 0, Received: %zu", sz);
 
   int8_t *n_bytes = arena_alloc(arena, sz);
