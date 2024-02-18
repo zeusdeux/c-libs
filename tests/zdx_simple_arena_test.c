@@ -50,7 +50,10 @@ int main(void)
       assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
       /* 0 byte allocation */
-      // TODO
+      int *k = arena_alloc(&arena, 0);
+      assertm(!arena.err, "Expected: arena_alloc to succeed, Received: %s", arena.err);
+      assertm(k == arena.arena, "Expected: returned ptr to equal arena base ptr %p, Received: %p", arena.arena, (void *)k);
+      assertm(arena.offset == 0, "Expected: arena offset to not change, Received: %zu", arena.offset);
 
       /* 1 byte allocation */
       test_arena_alloc(&arena, 1, 1, 1);
@@ -88,33 +91,56 @@ int main(void)
       arena_t arena = arena_create(requested_arena_size);
       assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
+      const char *err_msg = "SOME ERROR";
+      arena.err = err_msg;
+      int *i = arena_alloc(&arena, 1);
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      assertm(strcmp(arena.err, err_msg) == 0, "Expected: %s, Received: %s", err_msg, arena.err);
+      /* reset arena to proper state */
+      arena.err = NULL;
+
+      /* test arena size less than 0 */
       /* arena.size = -1; // this should trigger compiler error due to #pragma GCC diagnostic error "-Wsign-conversion" */
+
+      /* test invalid arena size of 0 */
       size_t arena_sz = arena.size;
       arena.size = 0; // trigger error in arena_alloc
-      int *i = arena_alloc(&arena, 4);
+      i = arena_alloc(&arena, 4);
       (void) i;
       assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
       /* reset arena to proper state */
       arena.size = arena_sz;
       arena.err = NULL;
 
+      /* test arena offset less that 0 */
       /* arena.offset = -1; // this should trigger compiler error due to #pragma GCC diagnostic error "-Wsign-conversion" */
+
+      /* test arena offset beyond arena size */
       arena.offset = arena.size + 1; // trigger error in arena_alloc
-      i = arena_alloc(&arena, 4);
+      i = arena_alloc(&arena, 10);
       assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
       /* reset arena to proper state */
       arena.offset = 0;
       arena.err = NULL;
 
+      /* test invalid arena base address (NULL) */
       void *arena_addr = arena.arena;
       arena.arena = NULL;
-      i = arena_alloc(&arena, 4);
+      i = arena_alloc(&arena, 20);
       assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
       /* reset arena to proper state */
       arena.arena = arena_addr;
       arena.err = NULL;
 
-      // TODO: add test for size being larger than remaining space in arena
+      /* test arena out of memory */
+      i = arena_alloc(&arena, 40); // bump the offset a bit
+      arena_sz = arena.size;
+      arena.size = 42;
+      i = arena_alloc(&arena, 4);
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      /* reset arena to proper state */
+      arena.size = arena_sz;
+      arena.err = NULL;
 
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
