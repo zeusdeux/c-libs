@@ -104,7 +104,7 @@ static inline size_t arena_round_up_to_page_size_(size_t sz)
   dbg(">> size %zu \t| system page size %ld", sz, page_size);
 
   if (page_size < 0) {
-    dbg("<< sysconf failed", page_size);
+    dbg("<< sysconf failed");
     return 0;
   }
   /* this should never really happen but guarding just in case */
