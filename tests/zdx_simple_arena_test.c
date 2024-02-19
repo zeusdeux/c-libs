@@ -189,7 +189,8 @@ int main(void)
 
       void *arena_base_ptr = arena.arena;
       arena.arena = NULL;
-      assertm(!arena_reset(&arena) && arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      assertm(!arena_reset(&arena) && arena.err && strcmp(arena.err, err_msg) != 0,
+              "Expected: Arena to show error: \"Error: %s\", Received: valid arena OR stale error \"%s\"", arena.err, err_msg);
       /* reset arena to valid state */
       arena.arena = arena_base_ptr;
       arena.err = NULL;
