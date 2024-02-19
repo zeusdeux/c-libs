@@ -44,6 +44,7 @@
   (cond) ?                                                                                                \
          ((void)0)                                                                                        \
        : (fprintf(stderr, "%s:%d:\t[%s] FAILED ASSERTION: %s => ", __FILE__, __LINE__, __func__, #cond),  \
+          fprintf(stderr, "\n\tREASON: "),                                                                \
           fprintf(stderr, __VA_ARGS__),                                                                   \
           fprintf(stderr, "\n"),                                                                          \
           abort())
