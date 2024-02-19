@@ -207,6 +207,7 @@ int main(void)
     }
   }
 
+  /* arena_calloc */
   {
     {
       arena_t arena = arena_create(requested_arena_size);
