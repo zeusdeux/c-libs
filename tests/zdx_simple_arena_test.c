@@ -151,56 +151,118 @@ int main(void)
 
   /* arena_reset */
   {
-    arena_t arena = arena_create(requested_arena_size);
-    void *arena_base_ptr = arena.arena;
-    assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      void *arena_base_ptr = arena.arena;
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
-    int *i = arena_alloc(&arena, sizeof(int));
-    (void) i;
-    assertm(!arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
-    assertm(arena.offset == 4, "Expected: 4, Received: %zu", arena.offset);
+      int *i = arena_alloc(&arena, sizeof(int));
+      (void) i;
+      assertm(!arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      assertm(arena.offset == 4, "Expected: 4, Received: %zu", arena.offset);
 
-    assertm(arena_reset(&arena) && !arena.err,
-            "Expected: arena_reset to work, Received: %s -> %s", arena.err,  strerror(errno));
-    assertm(arena.offset == 0, "Expected: arena offset to reset to 0, Received: %zu", arena.offset);
-    assertm(arena.arena == arena_base_ptr, "Expected: arena offset to remain unchanged from %p, Received: %p", arena_base_ptr, arena.arena);
+      assertm(arena_reset(&arena) && !arena.err,
+              "Expected: arena_reset to work, Received: %s -> %s", arena.err,  strerror(errno));
+      assertm(arena.offset == 0, "Expected: arena offset to reset to 0, Received: %zu", arena.offset);
+      assertm(arena.arena == arena_base_ptr, "Expected: arena offset to remain unchanged from %p, Received: %p", arena_base_ptr, arena.arena);
 
-    assertm(arena_free(&arena) && !arena.err,
-            "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-    log(L_INFO, "[ARENA RESET TESTS] OK!");
+      log(L_INFO, "[ARENA RESET HAPPY PATH TESTS] OK!");
+    }
+
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+      /* introduce error */
+      const char *err_msg = "SOME ERROR";
+      arena.err = err_msg;
+      assertm(!arena_reset(&arena) && arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      assertm(strcmp(arena.err, err_msg) == 0, "Expected: \"%s\", Received: \"%s\"", err_msg, arena.err);
+      /* reset arena to valid state */
+      arena.err = NULL;
+
+      /* check if arena_reset works as expected after resetting error */
+      assertm(arena_reset(&arena), "Expected: arena reset works correctly when no errors, Received: %s", arena.err);
+
+      void *arena_base_ptr = arena.arena;
+      arena.arena = NULL;
+      assertm(!arena_reset(&arena) && arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      /* reset arena to valid state */
+      arena.arena = arena_base_ptr;
+      arena.err = NULL;
+
+      /* check if arena_reset works as expected after resetting error */
+      assertm(arena_reset(&arena), "Expected: arena reset works correctly when no errors, Received: %s", arena.err);
+
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+
+      log(L_INFO, "[ARENA RESET ERROR PATH TESTS] OK!");
+    }
   }
 
   {
-    arena_t arena = arena_create(requested_arena_size);
-    assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
-    typedef struct {
-      int i;
-      double d;
-      struct {
-        size_t capacity;
-        size_t len;
-        char *str;
-      } sb;
-    } my_struct;
-    my_struct *m_arr = arena_calloc(&arena, 10, sizeof(my_struct));
-    size_t zero_count = 0;
-    size_t calloced_bytes = sizeof(my_struct) * 10;
+      typedef struct {
+        int i;
+        double d;
+        struct {
+          size_t capacity;
+          size_t len;
+          char *str;
+        } sb;
+      } my_struct;
+      my_struct *m_arr = arena_calloc(&arena, 10, sizeof(my_struct));
+      size_t zero_count = 0;
+      size_t calloced_bytes = sizeof(my_struct) * 10;
 
-    for (size_t i = 0; i < calloced_bytes; i++) {
-      /* same as *((uint8_t *)m_arr + i) */
-      uint8_t val = ((uint8_t *)m_arr)[i];
-      val == 0 && ++zero_count;
+      for (size_t i = 0; i < calloced_bytes; i++) {
+        /* same as *((uint8_t *)m_arr + i) */
+        uint8_t val = ((uint8_t *)m_arr)[i];
+        val == 0 && ++zero_count;
+      }
+
+      assertm(zero_count == calloced_bytes,
+              "Expected: %zu bytes to be zero filled, Received: %zu bytes were zero filled", zero_count, calloced_bytes);
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+
+      log(L_INFO, "[ARENA CALLOC HAPPY PATH TESTS] OK!");
     }
 
-    assertm(zero_count == calloced_bytes, "Expected: %zu bytes to be zero filled, Received: %zu bytes were zero filled", zero_count, calloced_bytes);
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
 
-    assertm(arena_free(&arena) && !arena.err,
-            "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+      /* introduce error */
+      const char *err_msg = "SOME ERROR";
+      arena.err = err_msg;
+      char *c = arena_calloc(&arena, 10, 1);
+      (void) c;
+      assertm(arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+      assertm(strcmp(arena.err, err_msg) == 0, "Expected: \"%s\", Received: \"%s\"", err_msg, arena.err);
+      /* reset arena to correct state */
+      arena.err = NULL;
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
 
+      log(L_INFO, "[ARENA CALLOC ERROR PATH TESTS] OK!");
+    }
   }
+
+
 
   {
     // TODO: tests for arena_realloc
