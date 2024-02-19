@@ -172,7 +172,34 @@ int main(void)
   }
 
   {
-    // TODO: tests for arena_calloc
+    arena_t arena = arena_create(requested_arena_size);
+    assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+    typedef struct {
+      int i;
+      double d;
+      struct {
+        size_t capacity;
+        size_t len;
+        char *str;
+      } sb;
+    } my_struct;
+    my_struct *m_arr = arena_calloc(&arena, 10, sizeof(my_struct));
+    size_t zero_count = 0;
+    size_t calloced_bytes = sizeof(my_struct) * 10;
+
+    for (size_t i = 0; i < calloced_bytes; i++) {
+      /* same as *((uint8_t *)m_arr + i) */
+      uint8_t val = ((uint8_t *)m_arr)[i];
+      val == 0 && ++zero_count;
+    }
+
+    assertm(zero_count == calloced_bytes, "Expected: %zu bytes to be zero filled, Received: %zu bytes were zero filled", zero_count, calloced_bytes);
+
+    assertm(arena_free(&arena) && !arena.err,
+            "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+
   }
 
   {
