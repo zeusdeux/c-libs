@@ -41,7 +41,7 @@ bool arena_free(arena_t *const ar);
 bool arena_reset(arena_t *const ar);
 void *arena_alloc(arena_t *const ar, const size_t sz); /* make sure to align addresses */
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
-void *arena_realloc(arena_t *const ar, void *ptr, const size_t sz); /* no idea what this should do tbh */
+void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const size_t sz); /* no idea what this should do tbh */
 
 #endif // ZDX_SIMPLE_ARENA_H_
 
