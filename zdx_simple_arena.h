@@ -225,8 +225,7 @@ static inline size_t arena_get_alignment_(size_t sz)
   /* this guard is so that we don't return an alignment value > DEFAULT_ALIGNMENT */
   if (sz < DEFAULT_ALIGNMENT) {
     /* the branches below return "natural alignment" for values belows DEFAULT_ALIGNMENT */
-    /* the code below obviously assumes DEFAULT_ALIGNMENT to be equal to 8 */
-    /* and that's fine as we are ok with wasted space if DEFAULT_ALIGNMENT > 8 */
+    /* the code below obviously assumes DEFAULT_ALIGNMENT to be a max of 32 */
     if (sz <= 1) {
       return sz;
     }
@@ -235,6 +234,12 @@ static inline size_t arena_get_alignment_(size_t sz)
     }
     if (sz <= 4) {
       return 4;
+    }
+    if (sz <= 8) {
+      return 8;
+    }
+    if (sz <= 16) {
+      return 16;
     }
   }
   return DEFAULT_ALIGNMENT;
@@ -286,14 +291,15 @@ void *arena_alloc(arena_t *const ar, const size_t sz)
   dbg("<< ptr %p", (void *)ptr);
   return (void *)ptr;
 }
-/* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
+
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 {
   dbg(">> count %zu \t| size %zu", count, sz);
   size_t total_size = count * sz;
   void *ptr = arena_alloc(ar, total_size);
-  // not zeroing memory as #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__) return zero-filled
-  // memory on MAP_ANONYMOUS
+  /* not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS */
+  /* and this function is guarded for those OS-es */
+
   dbg("<< ptr %p", ptr);
   return ptr;
 }

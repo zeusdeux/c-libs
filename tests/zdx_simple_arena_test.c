@@ -171,6 +171,14 @@ int main(void)
     log(L_INFO, "[ARENA RESET TESTS] OK!");
   }
 
+  {
+    // TODO: tests for arena_calloc
+  }
+
+  {
+    // TODO: tests for arena_realloc
+  }
+
   log(L_INFO, "<zdx_gap_buffer_test> All ok!\n");
   return 0;
 }
