@@ -149,6 +149,28 @@ int main(void)
     }
   }
 
+  /* arena_reset */
+  {
+    arena_t arena = arena_create(requested_arena_size);
+    void *arena_base_ptr = arena.arena;
+    assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+    int *i = arena_alloc(&arena, sizeof(int));
+    (void) i;
+    assertm(!arena.err, "Expected: Arena to show error: \"Error: %s\", Received: valid arena", arena.err);
+    assertm(arena.offset == 4, "Expected: 4, Received: %zu", arena.offset);
+
+    assertm(arena_reset(&arena) && !arena.err,
+            "Expected: arena_reset to work, Received: %s -> %s", arena.err,  strerror(errno));
+    assertm(arena.offset == 0, "Expected: arena offset to reset to 0, Received: %zu", arena.offset);
+    assertm(arena.arena == arena_base_ptr, "Expected: arena offset to remain unchanged from %p, Received: %p", arena_base_ptr, arena.arena);
+
+    assertm(arena_free(&arena) && !arena.err,
+            "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+    log(L_INFO, "[ARENA RESET TESTS] OK!");
+  }
+
   log(L_INFO, "<zdx_gap_buffer_test> All ok!\n");
   return 0;
 }

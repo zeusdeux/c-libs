@@ -38,6 +38,7 @@ typedef struct Arena arena_t;
 
 arena_t arena_create(const size_t sz);
 bool arena_free(arena_t *const ar);
+bool arena_reset(arena_t *const ar);
 void *arena_alloc(arena_t *const ar, const size_t sz); /* make sure to align addresses */
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
 void *arena_realloc(arena_t *const ar, void *ptr, const size_t sz); /* no idea what this should do tbh */
@@ -168,6 +169,25 @@ bool arena_free(arena_t *const ar)
     return true;
   }
 
+  /* retain any previous error if an errored arena was passed in */
+  if (!ar->err) {
+    ar->err = ar->arena == NULL ? arena_get_err_msg_(ARENA_EINVAL) : arena_get_err_msg_(ARENA_ERELFAIL);
+  }
+
+  ar_dbg("<<", ar);
+  return false;
+}
+
+bool arena_reset(arena_t *const ar)
+{
+  ar_dbg(">>", ar);
+
+  if (!ar->err && ar->arena != NULL) {
+    ar->offset = 0;
+
+    ar_dbg("<<", ar);
+    return true;
+  }
   /* retain any previous error if an errored arena was passed in */
   if (!ar->err) {
     ar->err = ar->arena == NULL ? arena_get_err_msg_(ARENA_EINVAL) : arena_get_err_msg_(ARENA_ERELFAIL);
