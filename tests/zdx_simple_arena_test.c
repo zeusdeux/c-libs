@@ -116,10 +116,7 @@ int main(void)
       assertm(t->a == 'a', "Expected: 'a', Received: %c", t->a);
       assertm(t->b == 'b', "Expected: 'b', Received: %c", t->b);
 
-      /* test that allocation fails when there's no enough memory for one allocation
-         but passes for another */
-      printf("omgomg arena.offset %zu\n", arena.offset);
-
+      /* test that allocation fails when there's no enough memory for one allocation but passes for another */
       size_t arena_offset = arena.offset;
       size_t arena_offset_new = arena.size - 1; // pretend only 1 free byte remaining in arena
       arena.offset = arena_offset_new;
