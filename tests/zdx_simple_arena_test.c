@@ -222,6 +222,8 @@ int main(void)
       assertm(arena_reset(&arena), "Expected: arena reset to succeed, Received: false (%s)", arena.err);
       assertm(arena.err == NULL, "Expected: arena error to be reset to NULL, Received: %s", arena.err);
 
+      // TODO: add a test where arena_alloc fails and then we arena_reset and alloc again and that passes
+
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
