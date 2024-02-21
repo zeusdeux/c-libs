@@ -39,8 +39,8 @@ typedef struct Arena arena_t;
 arena_t arena_create(const size_t sz);
 bool arena_free(arena_t *const ar);
 bool arena_reset(arena_t *const ar);
-void *arena_alloc(arena_t *const ar, const size_t sz); /* make sure to align addresses */
-void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz); /* check if mmap-ed mem is already zero-ed. It *might* be due to MAP_PRIVATE so do confirm it for osx/macos. It _is_ zero-ed on linux for example. */
+void *arena_alloc(arena_t *const ar, const size_t sz);
+void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz);
 void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const size_t sz); /* no idea what this should do tbh */
 
 #endif // ZDX_SIMPLE_ARENA_H_
@@ -49,11 +49,10 @@ void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const siz
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h> /* for memset in arena_create and memcpy in arena_realloc */
 
 /* Nothing that allocates should be included in non-debug builds */
 #if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
-#include <string.h> /* for memset in arena_create */
-#include <stdio.h>
 #include "./zdx_util.h"
 #define ar_dbg(label, ar) dbg("%s arena %p \t| size %zu \t| offset %zu (%p) \t| err %s",      \
                               (label),                                                        \
@@ -68,6 +67,14 @@ typedef struct Arena {
   size_t size;
   size_t offset;
   void *arena;
+  /* This is to communicate errors outwards rather than for use by fns in this lib.
+   * Functions in this lib should do their own validations before proceeding.
+   * If their validations fail, then they should overwrite this with their own error.
+   * The user can therefore rely on "err" always pointing to the failure of the
+   * last function call. It is up to the user of this lib to always check this property
+   * before making calls to other functions in this lib if they want the failure reason
+   * for their last call.
+   */
   const char *err;
 } arena_t;
 
@@ -82,7 +89,6 @@ typedef enum {
   ARENA_EINVAL,
   ARENA_EACQFAIL,
   ARENA_ERELFAIL
-
 } arena_err_code_t;
 
 
@@ -90,9 +96,9 @@ static const char *arena_get_err_msg_(arena_err_code_t err_code)
 {
   static const char *err_str[] = {
     "Arena cannot allocate memory",
-    "Arena received invalid argument",
-    "Arena failed to acquire memory",
-    "Arena failed to release memory"
+    "Arena invalid or invalid argument",
+    "Arena failed to acquire memory. Check errno",
+    "Arena failed to release memory. Check errno"
   };
 
   return err_str[err_code];
@@ -100,37 +106,51 @@ static const char *arena_get_err_msg_(arena_err_code_t err_code)
 
 #define SA_DEFAULT_PAGE_SIZE_IF_UNDEF 4096
 
+/* this function should never fail, and always return a non-zero +ve value as mmap/munmap with size <= 0 will always fail */
 static inline size_t arena_round_up_to_page_size_(size_t sz)
 {
   long page_size = sysconf(_SC_PAGESIZE);
   dbg(">> size %zu \t| system page size %ld", sz, page_size);
 
   if (page_size < 0) {
-    dbg("<< sysconf failed");
-    return 0;
+    dbg("!! sysconf failed. Will round up to %d", SA_DEFAULT_PAGE_SIZE_IF_UNDEF);
   }
-  /* this should never really happen but guarding just in case */
-  page_size = page_size == 0 ? SA_DEFAULT_PAGE_SIZE_IF_UNDEF : page_size;
 
+  /* round up to SA_DEFAULT_PAGE_SIZE_IF_UNDEF if sysconf failed (-1) or returned 0 for some reason */
+  page_size = page_size <= 0 ? SA_DEFAULT_PAGE_SIZE_IF_UNDEF : page_size;
+
+  /* round up requested size of a multiple of page_size */
   size_t rounded_up_sz = sz < (size_t)page_size ? (size_t)page_size : ((sz / (size_t)page_size) + 1) * (size_t)page_size;
 
   dbg("<< rounded up size %zu", rounded_up_sz);
   return rounded_up_sz;
 }
 
+/*
+ * DESCRIPTION
+ *
+ * This function creates an arena with a backing memory of *atleast* size bytes.
+ * The size parameter is always rounded up to page size of the machine. This means you
+ * could get an arena larger than you requested but never smaller.
+ *
+ * RETURN VALUES
+ *
+ * If creation of the backing memory was successful, then the newly created arena is
+ * returned *by value* and *not* as a pointer as it can be trivially passed around
+ * via the stack. Automatic allocation is your friend!
+ * If there was an error, then an empty arena is created that has no backing memory
+ * and the "err" property is set with the error message. It can be passed to arena_free().
+ *
+ * NOTES
+ *
+ * If DEBUG is defined, then the whole arena is also memset to 0xcd to help with debugging.
+ */
 arena_t arena_create(size_t sz)
 {
   dbg(">> requested size %zu", sz);
 
   arena_t ar = {0};
-
-  if (!(sz = arena_round_up_to_page_size_(sz))) {
-    ar.err = arena_get_err_msg_(ARENA_EINVAL);
-    ar.arena = NULL;
-
-    dbg("<< rounded arena size %zu \t| rounding failed", sz);
-    return ar;
-  }
+  sz = arena_round_up_to_page_size_(sz);
 
   /* MAP_PRIVATE or MAP_SHARED must always be specified */
   /* from mmap man page - "Conforming applications must specify either MAP_PRIVATE or MAP_SHARED." */
@@ -148,58 +168,82 @@ arena_t arena_create(size_t sz)
   memset(ar.arena, 0xcd, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
 #endif
 
-  ar.err = NULL;
   ar.size = sz;
 
   ar_dbg("<<", &ar);
   return ar;
 }
 
+/*
+ * DESCRIPTION
+ *
+ * This function frees the memory backing the arena that's passed in.
+ * arena_free() is a safe function to call even with an "invalid" arena that
+ * for e.g., has "err" property set or is wrecked in some way so that
+ * users aren't stuck with invalid arenas and with no way to clear them.
+ * Also, from my tests on aarch64, munmap(NULL, size > 0) seems to always succeed.
+ * Whereas, munmap(NULL, 0) always fails due to size being 0.
+ * But that could be implementation specific.
+ * Either way, munmap() failures are handled so we are good.
+ *
+ * RETURN VALUES
+ *
+ * true is returned if the backing memory of the arena was freed.
+ * false is returned if an error occured and the "err" property is set to the
+ * error message.
+ */
 bool arena_free(arena_t *const ar)
 {
   ar_dbg(">>", ar);
 
-  /* only unmap if arena has no pending errors and is non-NULL aka valid */
-  if (!ar->err && ar->arena != NULL && munmap(ar->arena, ar->size) == 0) {
-    ar->err = NULL;
-    ar->arena = NULL;
-    ar->size = 0;
-    ar->offset = 0;
+  /* we leave error handling of NULL addr or size <= 0 to munmap */
+  if (munmap(ar->arena, ar->size) < 0) {
+    ar->err = arena_get_err_msg_(ARENA_ERELFAIL);
+
     ar_dbg("<<", ar);
-    return true;
+    return false;
   }
 
-  /* retain any previous error if an errored arena was passed in */
-  if (!ar->err) {
-    ar->err = ar->arena == NULL ? arena_get_err_msg_(ARENA_EINVAL) : arena_get_err_msg_(ARENA_ERELFAIL);
-  }
+  ar->size = 0;
+  ar->offset = 0;
+  ar->arena = NULL;
+  ar->err = NULL;
 
   ar_dbg("<<", ar);
-  return false;
+  return true;
 }
 
+/*
+ * DESCRIPTION
+ *
+ * This function resets an arena without deallocating the backing memory to allow
+ * for reuse of the arena without the overhead of freeing and reallocation. It also
+ * clears the "err" property of the arena. It always suceeds and can therefore, be
+ * safely called without any guards.
+ *
+ * RETURN VALUES
+ *
+ * true is always returned.
+ *
+ * NOTES
+ *
+ * Given that this function clears the "err" property, if the arena *did* have an error
+ * before this was called, the error will be lost upon returning from this function.
+ */
 bool arena_reset(arena_t *const ar)
 {
   ar_dbg(">>", ar);
 
-  if (!ar->err && ar->arena != NULL) {
-    ar->offset = 0;
-
-    ar_dbg("<<", ar);
-    return true;
-  }
-  /* retain any previous error if an errored arena was passed in */
-  if (!ar->err) {
-    ar->err = ar->arena == NULL ? arena_get_err_msg_(ARENA_EINVAL) : arena_get_err_msg_(ARENA_ERELFAIL);
-  }
+  ar->offset = 0;
+  ar->err = NULL;
 
   ar_dbg("<<", ar);
-  return false;
+  return true;
 }
 
 /* this is to enable cross platform tests that assume an alignment */
-#ifndef DEFAULT_ALIGNMENT
-#define DEFAULT_ALIGNMENT sizeof(max_align_t)
+#ifndef SA_DEFAULT_ALIGNMENT
+#define SA_DEFAULT_ALIGNMENT sizeof(max_align_t)
 #endif
 
 /*
@@ -222,10 +266,10 @@ bool arena_reset(arena_t *const ar)
  */
 static inline size_t arena_get_alignment_(size_t sz)
 {
-  /* this guard is so that we don't return an alignment value > DEFAULT_ALIGNMENT */
-  if (sz < DEFAULT_ALIGNMENT) {
-    /* the branches below return "natural alignment" for values belows DEFAULT_ALIGNMENT */
-    /* the code below obviously assumes DEFAULT_ALIGNMENT to be a max of 32 */
+  /* this guard is so that we don't return an alignment value > SA_DEFAULT_ALIGNMENT */
+  if (sz < SA_DEFAULT_ALIGNMENT) {
+    /* the branches below return "natural alignment" for values belows SA_DEFAULT_ALIGNMENT */
+    /* the code below obviously assumes SA_DEFAULT_ALIGNMENT to be a max of 32 */
     if (sz <= 1) {
       return sz;
     }
@@ -242,18 +286,43 @@ static inline size_t arena_get_alignment_(size_t sz)
       return 16;
     }
   }
-  return DEFAULT_ALIGNMENT;
+  return SA_DEFAULT_ALIGNMENT;
 }
 
-/* aligned arena allocator */
+/*
+ * DESCRIPTION
+ *
+ * This allocates size bytes in the arena and returns a pointer to the beginning of
+ * the allocated memory. It is an aligned allocator. It uses natural alignment for
+ * size values below sizeof(max_align_t). Greater than that, it aligns to sizeof(max_align_t).
+ *
+ * RETURN VALUES
+ *
+ * If arena is "valid" and size is > zero it either returns a pointer to the beginning
+ * of the allocated memory or NULL if out of memory.
+ * If either arena is "invalid" or size is <= 0, then it sets the "err" property of
+ * the arena with the error message and returns NULL.
+ */
 void *arena_alloc(arena_t *const ar, const size_t sz)
 {
   ar_dbg(">>", ar);
   dbg(">> requested size %zu", sz);
 
-  /* validity check */
-  if (ar->err || ar->arena == NULL || ar->size <= 0 || ar->offset > ar->size || ar->offset < 0) {
-    ar->err = ar->err != NULL ? ar->err : arena_get_err_msg_(ARENA_EINVAL);
+  /*
+   * Strict validity check as we don't want to allocate in invalid arenas to prevent
+   * data loss for the user.
+   * Although, We don't check for ar->err, as, for e.g. a previous allocation attempt
+   * might have failed due to ARENA_ENOMEM but the currently requested allocation
+   * _might_ fit in the remaining arena memory. We want to allow that.
+   *
+   * Also, as mentioned in the struct definition of arena_t,  ar->err is more for
+   * signaling error to the caller rather than using it for checks within functions
+   * in this lib. Functions here should do their own validations on the arena before
+   * proceeding or signal an error of their own. They should always clobber ar->err
+   * with their own reason for failure.
+   */
+  if (sz <= 0 || ar->arena == NULL || ar->size <= 0 || ar->offset < 0 || ar->offset > ar->size) {
+    ar->err = arena_get_err_msg_(ARENA_EINVAL);
 
     ar_dbg("<<", ar);
     return NULL;
@@ -268,30 +337,47 @@ void *arena_alloc(arena_t *const ar, const size_t sz)
     if ((remainder = ptr % alignment) != 0) {
       size_t padding = alignment - remainder;
       ptr += padding;
+      dbg("++ padding %zu", padding);
     }
     /* not using ptrdiff_t as ptr is guaranteed to be greater than ar->arena due to checks and ptr assignment above */
     size_t ptr_offset = ptr - (uintptr_t)ar->arena;
     size_t remaining = ar->size - ptr_offset;
-    dbg("<< padded ptr %p", (void *)ptr);
+    dbg("++ remaining %zu", remaining);
 
     /* non-resizeable arena hence we return NULL to signal error */
     if (sz > remaining) {
       ar->err = arena_get_err_msg_(ARENA_ENOMEM);
 
-      dbg("<< remaining %zu", remaining);
       ar_dbg("<<", ar);
       return NULL;
     }
+
+    dbg("++ padded ptr %p", (void *)ptr);
 
     /* we need to point to address after the one we are returning in ptr */
     ar->offset = ptr_offset + sz;
   }
 
+  /* clear errors as the allocation was successful */
+  ar->err = NULL;
+
   ar_dbg("<<", ar);
-  dbg("<< ptr %p", (void *)ptr);
+  dbg("<< allocated ptr %p", (void *)ptr);
   return (void *)ptr;
 }
 
+/*
+ * DESCRIPTION
+ *
+ * This function allocates memory for "count" objects, each of size bytes. It then zero-fills
+ * the memory region and returns a pointer to the beginning of the allocated memory.
+ *
+ * RETURN VALUES
+ *
+ * If arena is "valid" and (count * size) is > zero it either returns a pointer to the beginning
+ * of the allocated memory or NULL if out of memory. If either arena is "invalid" or size is <= 0,
+ * then it sets the "err" property of the arena with the error message and returns NULL.
+ */
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 {
   dbg(">> count %zu \t| size %zu", count, sz);
@@ -300,7 +386,7 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
   /* not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS */
   /* and this function is guarded for those OS-es */
 
-  dbg("<< ptr %p", ptr);
+  dbg("<< allocated ptr %p", ptr);
   return ptr;
 }
 
