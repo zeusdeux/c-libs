@@ -97,8 +97,8 @@ static const char *arena_get_err_msg_(arena_err_code_t err_code)
   static const char *err_str[] = {
     "Arena cannot allocate memory",
     "Arena invalid or invalid argument",
-    "Arena failed to acquire memory. Check errno",
-    "Arena failed to release memory. Check errno"
+    "Arena failed to acquire memory (check errno)",
+    "Arena failed to release memory (check errno)"
   };
 
   return err_str[err_code];
