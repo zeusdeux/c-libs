@@ -54,7 +54,7 @@
     exit(1);                                    \
   } while(0);
 
-#if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
+#if defined(ZDX_TRACE_ENABLE)
 #define dbg(...) do {                                                   \
     fprintf (stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__);    \
     fprintf (stderr, __VA_ARGS__);                                      \
