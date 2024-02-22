@@ -156,7 +156,8 @@ static inline size_t arena_round_up_to_page_size_(size_t sz)
  *
  * NOTES
  *
- * If DEBUG is defined, then the whole arena is also memset to 0xcd to help with debugging.
+ * If DEBUG is defined, then the whole arena is also memset to SA_DEBUG_BYTE which is
+ * 0xcd by default to help with debugging.
  */
 arena_t arena_create(size_t sz)
 {
