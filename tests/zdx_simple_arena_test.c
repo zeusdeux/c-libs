@@ -18,23 +18,59 @@ int main(void)
   /* arena_create */
   {
     {
-    arena_t arena = arena_create(requested_arena_size);
-    assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
-    assertm(arena.arena != NULL, "Expected: non-NULL arena addr, Received: %p", arena.arena);
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+      assertm(arena.arena != NULL, "Expected: non-NULL arena addr, Received: %p", arena.arena);
 
-    size_t expected_arena_size = arena_round_up_to_page_size_(requested_arena_size);
-    assertm(arena.size == expected_arena_size, "Expected: %ld, Received: %zu", expected_arena_size, arena.size);
-    assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
+      size_t expected_arena_size = arena_round_up_to_page_size_(requested_arena_size);
+      assertm(arena.size == expected_arena_size, "Expected: %ld, Received: %zu", expected_arena_size, arena.size);
+      assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
 
-    assertm(arena_free(&arena) && !arena.err, "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-    log(L_INFO, "[ARENA CREATE HAPPY PATH TESTS] OK!");
+      log(L_INFO, "[ARENA CREATE HAPPY PATH TESTS] OK!");
     }
 
     {
-      // TODO: add error path tests for arena_create by setting size to negative somehow
-      // as that'll make mmap fail
+      // make mmap fail by requesting 0 bytes
+      arena_t arena = arena_create(0);
+      assertm(arena.err, "Expected: arena creation to fail with '%s -> %s', Received: valid arena", arena.err, strerror(errno));
+      assertm(arena.arena == NULL, "Expected: NULL as arena base addr, Received: %p", arena.arena);
+      assertm(arena.size == 0, "Expected: %d, Received: %zu", 0, arena.size);
+      assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
+
+      // arena.size being 0 will cause munmap to fail as well
+      assertm(!arena_free(&arena) && arena.err,
+              "Expected: free-ing an unallocated arena should fail with '%s -> %s', Received: arena_free worked", arena.err,  strerror(errno));
+
+      log(L_INFO, "[ARENA CREATE ERROR PATH TESTS] OK!");
+
     }
+
+#ifdef DEBUG
+    {
+      /* DEBUG is enabled during include so arena_create should memset arena to 0xcd */
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+      assertm(arena.arena != NULL, "Expected: non-NULL arena addr, Received: %p", arena.arena);
+
+      size_t expected_arena_size = arena_round_up_to_page_size_(requested_arena_size);
+      assertm(arena.size == expected_arena_size, "Expected: %ld, Received: %zu", expected_arena_size, arena.size);
+      assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
+
+      for (size_t i = 0; i < arena.size; i++) {
+        uint8_t val = ((uint8_t *)arena.arena)[i];
+        assertm(val == SA_DEBUG_BYTE, "Expected: Byte %zu to be %#x, Received: %u", i, SA_DEBUG_BYTE, val);
+      }
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+      log(L_INFO, "[ARENA CREATE DEBUG PATH TESTS] OK!");
+    }
+#endif
+
   }
 
   /* arena_free */
@@ -70,8 +106,17 @@ int main(void)
     }
 
     {
-      // TODO: add error path tests for arena_free by setting ar->size to
-      // negative somehow for example as that'll make munmap fail
+      // make mmap fail by requesting 0 bytes
+      arena_t arena = arena_create(0);
+      // arena.size being 0 will cause munmap to fail as well
+      assertm(!arena_free(&arena) && arena.err,
+              "Expected: free-ing an unallocated arena should fail with '%s -> %s', Received: arena_free worked", arena.err,  strerror(errno));
+      assertm(arena.err, "Expected: arena creation to fail with '%s -> %s', Received: valid arena", arena.err, strerror(errno));
+      assertm(arena.arena == NULL, "Expected: NULL as arena base addr, Received: %p", arena.arena);
+      assertm(arena.size == 0, "Expected: %d, Received: %zu", 0, arena.size);
+      assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
+
+      log(L_INFO, "[ARENA FREE ERROR PATH TESTS] OK!");
     }
   }
 
@@ -215,11 +260,35 @@ int main(void)
       /* arena.err should have no impact on arena_reset */
       const char *err_msg = "SOME ERROR";
       arena.err = err_msg;
-      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
       assertm(arena_reset(&arena), "Expected: arena reset to succeed, Received: false (%s)", arena.err);
+      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
       assertm(arena.err == NULL, "Expected: arena error to be reset to NULL, Received: %s", arena.err);
 
-      // TODO: add a test where arena_alloc fails and then we arena_reset and alloc again and that passes
+      /* a test where arena_alloc fails with ARENA_ENOMEM and then we arena_reset and alloc again and that passes */
+      arena_base_ptr = arena.arena;
+      size_t arena_size = arena.size;
+      size_t new_offset = arena.size - 1; // 1 byte remaining in arena
+      arena.offset = new_offset;
+      char *c = arena_alloc(&arena, 2); // request 2 bytes of allocation
+      (void) c;
+      assertm(arena.err,
+              "Expected: Arena to show error: \"Error: %s -> %s\", Received: valid arena", arena.err, strerror(errno));
+      assertm(arena.arena == arena_base_ptr,
+              "Expected: Arena base ptr to remain at %p, Received: %p", arena_base_ptr, arena.arena);
+      assertm(arena.size == arena_size, "Expected: Arena size to remain at %zu, Received: %zu", arena_size, arena.size);
+      assertm(arena.offset == new_offset, "Expected: Arena offset to remain at %zu, Received: %zu", new_offset, arena.offset);
+      /* now lets reset and attempt to allocate 2 bytes again */
+      assertm(arena_reset(&arena), "Expected: arena reset to succeed, Received: false (%s)", arena.err);
+      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
+      assertm(arena.err == NULL, "Expected: arena error to be reset to NULL, Received: %s", arena.err);
+      c = arena_alloc(&arena, 2); // request 2 bytes of allocation
+      (void) c;
+      assertm(!arena.err,
+              "Expected: allocation to work, Received: '%s -> %s'", arena.err, strerror(errno));
+      assertm(arena.arena == arena_base_ptr,
+              "Expected: Arena base ptr to remain at %p, Received: %p", arena_base_ptr, arena.arena);
+      assertm(arena.size == arena_size, "Expected: Arena size to remain at %zu, Received: %zu", arena_size, arena.size);
+      assertm(arena.offset == 2, "Expected: Arena offset to change to 2, Received: %zu", arena.offset);
 
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
@@ -258,7 +327,7 @@ int main(void)
       }
 
       assertm(zero_count == calloced_bytes,
-              "Expected: %zu bytes to be zero filled, Received: %zu bytes were zero filled", zero_count, calloced_bytes);
+              "Expected: %zu bytes to be zero filled, Received: %zu bytes were zero filled", calloced_bytes, zero_count);
 
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
