@@ -126,6 +126,10 @@ static inline size_t arena_round_up_to_page_size_(size_t sz)
   return rounded_up_sz;
 }
 
+#ifndef SA_DEBUG_BYTE
+#define SA_DEBUG_BYTE 0xcd
+#endif // SA_DEBUG_BYTE
+
 /*
  * DESCRIPTION
  *
@@ -163,9 +167,8 @@ arena_t arena_create(size_t sz)
     ar_dbg("<<", &ar);
     return ar;
   }
-
 #if defined(DEBUG)
-  memset(ar.arena, 0xcd, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
+  memset(ar.arena, SA_DEBUG_BYTE, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
 #endif
 
   ar.size = sz;
@@ -383,8 +386,15 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
   dbg(">> count %zu \t| size %zu", count, sz);
   size_t total_size = count * sz;
   void *ptr = arena_alloc(ar, total_size);
-  /* not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS */
-  /* and this function is guarded for those OS-es */
+
+  /*
+   * not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS
+   * unless DEBUG is set as arena_create() memset's the whole arena to 0xcd in DEBUG mode
+   * and this function is guarded for those OS-es
+   */
+#if defined(DEBUG)
+  memset(ptr, 0, total_size);
+#endif // DEBUG
 
   dbg("<< allocated ptr %p", ptr);
   return ptr;
