@@ -2,7 +2,7 @@ DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
 FLAGS = -std=c17 -Wall -pedantic -O3
 TEST_FLAGS = $(FLAGS)
 
-DBG_FLAGS = -DZDX_TRACE_ENABLE -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -fsanitize=address,undefined
+DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -fsanitize=address,undefined
 DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
 
 tags:
@@ -57,8 +57,8 @@ test_zdx_string_view_dbg:
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_string_view_test_dbg
 
 test_zdx_simple_arena:
-	@echo "--- Running tests on zdx_simple_arena.h release ---"
-	@clang $(TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test && ./tests/zdx_simple_arena_test
+	@echo "--- Running tests on zdx_simple_arena.h release including DEBUG flow ---"
+	@clang -DDEBUG $(TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test && ./tests/zdx_simple_arena_test
 	@echo "--- Checking for memory zdx_simple_arena.h leaks ---"
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit -- ./tests/zdx_simple_arena_test
 
