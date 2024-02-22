@@ -106,9 +106,18 @@ static const char *arena_get_err_msg_(arena_err_code_t err_code)
 
 #define SA_DEFAULT_PAGE_SIZE_IF_UNDEF 4096
 
-/* this function should never fail, and always return a non-zero +ve value as mmap/munmap with size <= 0 will always fail */
+/*
+ * This function should never fail. When called with size sz <= 0,
+ * it returns sz as-is as we want to only round up +ve values to
+ * system page size.
+ */
 static inline size_t arena_round_up_to_page_size_(size_t sz)
 {
+  if (sz <= 0) {
+    dbg("<< Invalid size to round up: %zu", sz);
+    return sz;
+  }
+
   long page_size = sysconf(_SC_PAGESIZE);
   dbg(">> size %zu \t| system page size %ld", sz, page_size);
 
@@ -154,6 +163,13 @@ arena_t arena_create(size_t sz)
   dbg(">> requested size %zu", sz);
 
   arena_t ar = {0};
+
+  /*
+   * for sz <= 0 it'll return sz as-is as mmap and munmap with sz <= 0 causes them to fail and
+   * we want to retain that behavior as we offload error handling to mmap/munmap in this and
+   * in arena_free(). Also, arena_create(0) failing just makes sense from the API consumer's
+   * perspective imho.
+   */
   sz = arena_round_up_to_page_size_(sz);
 
   /* MAP_PRIVATE or MAP_SHARED must always be specified */
