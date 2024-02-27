@@ -9,7 +9,12 @@
 #define ZDX_SIMPLE_ARENA_IMPLEMENTATION
 #include "../zdx_simple_arena.h"
 
-void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment);
+static void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment);
+/* static void print_arena(arena_t *const ar) */
+/* { */
+/*   log(L_INFO, "arena %p \t| size %zu \t| offset %zu (%#zx) \t| err %s", */
+/*          ar->arena, ar->size, ar->offset, ((uintptr_t)ar->arena + ar->offset), ar->err); */
+/* } */
 
 int main(void)
 {
@@ -70,7 +75,6 @@ int main(void)
       log(L_INFO, "[ARENA CREATE DEBUG PATH TESTS] OK!");
     }
 #endif
-
   }
 
   /* arena_free */
@@ -138,7 +142,6 @@ int main(void)
       test_arena_alloc(&arena, 4, 20, 4); // (13 from above get's padded to 16 to be divisible by alignment of 4) + 4 = 20
       /* 11 bytes allocation */
       test_arena_alloc(&arena, 11, 35, 8); // (20 from above get's padded to 24 to be divisible by alignment of 8) + 5 = 29
-
 
       /* arena.err being set should have no impact on allocation */
       const char *err_msg = "SOME ERROR";
@@ -337,21 +340,127 @@ int main(void)
     }
 
     {
-      // All arena_calloc error path tests are the ones checked by arena_alloc as arena_calloc
-      // calls arena_alloc internally and offloads all error checking to arena_alloc
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+      /* test internal memory arena_alloc failure */
+      char *c = arena_calloc(&arena, arena.size, 1);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", arena.size, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == arena.size, "Expected: arena offset to be %zu, Received: %zu", arena.size, arena.offset);
+
+      c = arena_calloc(&arena, 1, 1);
+      assertm(c == NULL, "Expected: arena_calloc to fail as it should be full, Received: new ptr %p", (void *)c);
+      assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
       log(L_INFO, "[ARENA CALLOC ERROR PATH TESTS] OK!");
     }
   }
 
+  /* arena_realloc */
   {
-    // TODO: tests for arena_realloc
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+      /* test old_sz == new_sz path */
+      size_t len = arena.size / 2;
+      char *c = arena_alloc(&arena, len);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", len, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      for (size_t i = 0; i < len; i++) {
+        c[i] = i + 1;
+      }
+      c[len - 1] = '\0';
+
+      c = arena_realloc(&arena, (void *)c, len, len);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", len, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == arena.size, "Expected: arena offset to be %zu, Received: %zu", arena.size, arena.offset);
+
+      for (size_t i = 0; i < len - 1; i++) {
+        assertm(c[i] == (char)(i + 1), "Expected: %c, Received: %c", (char)(i + 1), c[i]);
+      }
+      assertm(c[len - 1] == '\0', "Expected: '\\0', Received: %c", c[len - 1]);
+
+      arena_reset(&arena);
+
+      /* test old size > new_sz path */
+      len = arena.size - 16;
+      c = arena_alloc(&arena, len);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", len, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      c = arena_realloc(&arena, (void *)c, len, 16);
+      assertm(!arena.err, "Expected: arena_realloc to succeed, Received: arena to have an error %s -> %s", arena.err, strerror(errno));
+      assertm(c != NULL, "Expected: valid allocated pointer, Received: %p", (void *)c);
+      assertm(arena.offset == arena.size, "Expected: arena offset to be %zu, Received: %zu", arena.size, arena.offset);
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+      log(L_INFO, "[ARENA REALLOC HAPPY PATH TESTS] OK!");
+    }
+
+    {
+      arena_t arena = arena_create(requested_arena_size);
+      assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
+
+      char a = 'a';
+      char *c = &a;
+
+      /* test invalid ptr path */
+      c = arena_realloc(&arena, c, 1, 10);
+      assertm(c == NULL, "Expected: arena_realloc to fail as ptr %p is not in arena, Received: new ptr %p", (void *)c, (void *)c);
+      assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
+      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
+
+      /* test invalid old size path */
+      c = arena_realloc(&arena, c, 0, 10);
+      assertm(c == NULL, "Expected: arena_realloc to fail due to old size being 0, Received: new ptr %p", (void *)c);
+      assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
+      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
+
+      arena_reset(&arena);
+
+      /* test invalid (ptr + old size) path */
+      size_t len = arena.size - 1024;
+      c = arena_alloc(&arena, len);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", len, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      c = arena_realloc(&arena, c, arena.size, 1);
+      assertm(c == NULL, "Expected: arena_realloc to fail as arena should be full, Received: new ptr %p", (void *)c);
+      assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      arena_reset(&arena);
+
+      /* test internal call to arena_alloc should fail path */
+      len = arena.size - 16;
+      c = arena_alloc(&arena, len);
+      assertm(!arena.err, "Expected: %zu bytes to be allocated, Received: %p (%s -> %s)", len, (void *)c, arena.err, strerror(errno));
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      c = arena_realloc(&arena, (void *)c, len, 17);
+      assertm(c == NULL, "Expected: arena_realloc to fail as arena can't fit 17 bytes, Received: new ptr %p", (void *)c);
+      assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
+      assertm(arena.offset == len, "Expected: arena offset to be %zu, Received: %zu", len, arena.offset);
+
+      assertm(arena_free(&arena) && !arena.err,
+              "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
+
+      log(L_INFO, "[ARENA REALLOC ERROR PATH TESTS] OK!");
+    }
   }
 
   log(L_INFO, "<zdx_simple_arena_test> All ok!\n");
   return 0;
 }
 
-void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment)
+static void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment)
 {
   /* log(L_INFO, "[ARENA ALLOC TEST] size %zu, exp offset %zu, exp align %zu", sz, expected_offset, expected_alignment); */
   assertm(sz > 0, "Expected: test_arena_alloc called with size > 0, Received: %zu", sz);

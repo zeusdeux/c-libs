@@ -41,7 +41,7 @@ bool arena_free(arena_t *const ar);
 bool arena_reset(arena_t *const ar);
 void *arena_alloc(arena_t *const ar, const size_t sz);
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz);
-void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const size_t sz); /* no idea what this should do tbh */
+void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const size_t new_sz);
 
 #endif // ZDX_SIMPLE_ARENA_H_
 
@@ -148,10 +148,10 @@ static inline size_t arena_round_up_to_page_size_(size_t sz)
  *
  * RETURN VALUES
  *
- * If creation of the backing memory was successful, then the newly created arena is
+ * Success: If creation of the backing memory was successful, then the newly created arena is
  * returned *by value* and *not* as a pointer as it can be trivially passed around
  * via the stack. Automatic allocation is your friend!
- * If there was an error, then an empty arena is created that has no backing memory
+ * Error: If there was an error, then an empty arena is created that has no backing memory
  * and the "err" property is set with the error message. It can be passed to arena_free().
  *
  * NOTES
@@ -208,8 +208,8 @@ arena_t arena_create(size_t sz)
  *
  * RETURN VALUES
  *
- * true is returned if the backing memory of the arena was freed.
- * false is returned if an error occured and the "err" property is set to the
+ * Success: true is returned if the backing memory of the arena was freed.
+ * Error: false is returned if an error occured and the "err" property is set to the
  * error message.
  */
 bool arena_free(arena_t *const ar)
@@ -243,7 +243,8 @@ bool arena_free(arena_t *const ar)
  *
  * RETURN VALUES
  *
- * true is always returned.
+ * Success: true is always returned.
+ * Error: this function never fails/errors.
  *
  * NOTES
  *
@@ -318,10 +319,10 @@ static inline size_t arena_get_alignment_(size_t sz)
  *
  * RETURN VALUES
  *
- * If arena is "valid" and size is > zero it either returns a pointer to the beginning
- * of the allocated memory or NULL if out of memory.
- * If either arena is "invalid" or size is <= 0, then it sets the "err" property of
- * the arena with the error message and returns NULL.
+ * Success: If arena is "valid" and size is > zero it either returns a pointer to the beginning
+ * of the allocated memory.
+ * Error: If either arena is "invalid" or size is <= 0 or allocation failed, then it sets
+ * the "err" property of the arena with the error message and returns NULL.
  */
 void *arena_alloc(arena_t *const ar, const size_t sz)
 {
@@ -394,15 +395,21 @@ void *arena_alloc(arena_t *const ar, const size_t sz)
  *
  * RETURN VALUES
  *
- * If arena is "valid" and (count * size) is > zero it either returns a pointer to the beginning
- * of the allocated memory or NULL if out of memory. If either arena is "invalid" or size is <= 0,
- * then it sets the "err" property of the arena with the error message and returns NULL.
+ * Success: If arena is "valid" and (count * size) is > zero it either returns a pointer to the beginning
+ * of the allocated memory or NULL if out of memory.
+ * Error: If either arena is "invalid" or size is <= 0, then it sets the "err" property of the arena with
+ * the error message and returns NULL.
  */
 void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 {
   dbg(">> count %zu \t| size %zu", count, sz);
   size_t total_size = count * sz;
   void *ptr = arena_alloc(ar, total_size);
+
+  if (ptr == NULL) {
+    dbg("<< Could not allocate memory");
+    return ptr;
+  }
 
   /*
    * not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS
@@ -415,6 +422,56 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 
   dbg("<< allocated ptr %p", ptr);
   return ptr;
+}
+
+/*
+ * DESCRIPTION
+ *
+ * This function reallocates the memory pointed to by ptr from old_sz to new_sz. It does
+ * so by allocating new_sz bytes ahead in the arena and then copying over old_sz bytes starting
+ * from ptr to newly allocated memory.
+ *
+ * RETURN VALUES
+ *
+ * Success: If arena is "valid" and the ptr + old_sz block is within the arena, a pointer to
+ * the new memory allocation is returned.
+ * Error: If either arena is "invalid" or ptr + old_sz block is outside of arena, then it sets
+ * the "err" property of the arena with the error message and returns NULL.
+ *
+ * NOTES
+ *
+ * Since this is a simple arena allocator, we don't track the size of each allocation represented
+ * by a pointer to the arena memory. This means that, if ptr + old_sz is greater than the actual
+ * allocation size of the call that returned ptr but ptr + old_sz is still within the arena, then
+ * arena_realloc will not complain and copy ptr + old_sz bytes to the new allocation. This means
+ * that the new allocation will contain data from some other allocation.
+ * We are ok with trading this off for simplicity though as this allocator is meant to be freed
+ * often - for e.g., on each render loop of a game or text editor.
+ */
+void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const size_t new_sz)
+{
+  ar_dbg(">>", ar);
+  dbg(">> ptr to realloc %p \t| old size %zu \t| new size %zu", ptr, old_sz, new_sz);
+
+  /* bounds check on the incoming ptr + old size combo to make sure they are within arena */
+  if (old_sz <= 0 || ptr < ar->arena || ((uintptr_t)ptr + old_sz) >= ((uintptr_t)ar->arena + ar->size)) {
+    ar->err = arena_get_err_msg_(ARENA_EINVAL);
+
+    ar_dbg("<<", ar);
+    return NULL;
+  }
+
+  void *new_ptr = arena_alloc(ar, new_sz);
+
+  if (new_ptr == NULL){
+    dbg("<< Could not allocate memory");
+    return NULL;
+  }
+
+  memcpy(new_ptr, ptr, new_sz < old_sz ? new_sz : old_sz);
+
+  ar_dbg("<<", ar);
+  return new_ptr;
 }
 
 #elif defined(_WIN32) || defined(_WIN64)
