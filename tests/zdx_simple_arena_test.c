@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <errno.h>
 #include "../zdx_util.h"
 #define SA_DEFAULT_ALIGNMENT 8 // to make sure tests work as expected across platforms
@@ -50,7 +51,6 @@ int main(void)
               "Expected: free-ing an unallocated arena should fail with '%s -> %s', Received: arena_free worked", arena.err,  strerror(errno));
 
       log(L_INFO, "[ARENA CREATE ERROR PATH TESTS] OK!");
-
     }
 
 #ifdef DEBUG
@@ -149,7 +149,6 @@ int main(void)
       test_arena_alloc(&arena, 10, 50, 8);
       /* reset arena to proper state */
       arena.err = NULL;
-
 
       /* struct allocation */
       typedef struct {

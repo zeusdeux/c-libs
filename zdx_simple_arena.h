@@ -28,6 +28,7 @@
 #ifndef ZDX_SIMPLE_ARENA_H_
 #define ZDX_SIMPLE_ARENA_H_
 
+#include <stddef.h>
 #include <stdbool.h>
 
 #pragma GCC diagnostic error "-Wnonnull"
@@ -47,7 +48,6 @@ void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const siz
 
 #ifdef ZDX_SIMPLE_ARENA_IMPLEMENTATION
 
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h> /* for memset in arena_create and memcpy in arena_realloc */
 
@@ -61,6 +61,7 @@ void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const siz
                               (ar)->err)
 #else
 #define ar_dbg(...)
+#define dbg(...)
 #endif
 
 typedef struct Arena {
