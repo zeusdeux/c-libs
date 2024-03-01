@@ -50,7 +50,7 @@
           abort())
 
 #define bail(...) do {                          \
-    dbg(__VA_ARGS__);                           \
+    log(L_ERROR, __VA_ARGS__);                  \
     exit(1);                                    \
   } while(0);
 
