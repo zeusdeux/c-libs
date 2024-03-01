@@ -50,10 +50,10 @@ void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const siz
 
 #include <stdint.h>
 #include <string.h> /* for memset in arena_create and memcpy in arena_realloc */
+#include "./zdx_util.h"
 
 /* Nothing that allocates should be included in non-debug builds */
-#if defined(ZDX_TRACE_ENABLE) || defined(DEBUG)
-#include "./zdx_util.h"
+#if defined(ZDX_TRACE_ENABLE)
 #define ar_dbg(label, ar) dbg("%s arena %p \t| size %zu \t| offset %zu (%p) \t| err %s",      \
                               (label),                                                        \
                               (ar)->arena, (ar)->size,                                        \
@@ -61,7 +61,6 @@ void *arena_realloc(arena_t *const ar, void *ptr, const size_t old_sz, const siz
                               (ar)->err)
 #else
 #define ar_dbg(...)
-#define dbg(...)
 #endif
 
 typedef struct Arena {
