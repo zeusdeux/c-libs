@@ -48,9 +48,12 @@ typedef enum {
   JSON_TOKEN_COLON,
   JSON_TOKEN_COMMA,
   JSON_TOKEN_SYMBOL, // null, true, false
-  JSON_TOKEN_NUMBER, // int, float and sci notation aka 1e4, 1e+4, 1e-4, etc
+  // number
+  JSON_TOKEN_LONG, // long int and long int in sci notation aka 1e4, 1e+4, 1e-4, etc
+  JSON_TOKEN_DOUBLE, // floating point and floating point in sci notation aka 1e4, 1e+4, 1e-4, etc
+
   JSON_TOKEN_STRING,
-  JSON_TOKEN_UNKNOWN
+  JSON_TOKEN_UNKNOWN // val will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
 } json_token_kind_t;
 
 typedef struct {
@@ -77,7 +80,8 @@ const char* json_token_kind_to_cstr(const json_token_kind_t kind)
     "JSON_TOKEN_COLON",
     "JSON_TOKEN_COMMA",
     "JSON_TOKEN_SYMBOL",
-    "JSON_TOKEN_NUMBER",
+    "JSON_TOKEN_LONG",
+    "JSON_TOKEN_DOUBLE",
     "JSON_TOKEN_STRING",
     "JSON_TOKEN_UNKNOWN"
   };
@@ -180,33 +184,42 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
     return token;
   }
 
-  // TODO: Asserts in lexing logic should actually return JSON_TOKEN_UNKNOWN with captured string view
-  // and a note or error or reason added on to the json_token_t type with the string of why the current
-  // JSON_TOKEN_UNKNOWN was generated so that parser can show useful errors. This assertm() stuff is only
-  // during development of the lib to debug logic quickly. Also, we want to return a value rather than abort
-  // as failing at lexing shouldn't fail the application that's using the lexer + parser ffs.
+  // Instead of asserts we instead return JSON_TOKEN_UNKNOWN with captured unknown chars in string view so that
+  // parser can show useful errors. This assertm() stuff is only during development of the lib to debug logic quickly.
+  // We really want to return a value rather than abort as failing at lexing shouldn't fail the application that's
+  // using the lexer + parser.
   // numbers
   int curr_char_isdigit = isdigit(lexer->input->buf[lexer->cursor]);
   int curr_char_isplus = lexer->input->buf[lexer->cursor] == '+';
   int curr_char_isminus = lexer->input->buf[lexer->cursor] == '-';
 
   if (curr_char_isdigit || curr_char_isplus || curr_char_isminus) {
-    if (curr_char_isdigit) {
-      token.kind = JSON_TOKEN_NUMBER;
-      token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume <digit>
+    const size_t started_at_lexer_cursor = lexer->cursor;
+    const char *started_at_char_addr = &lexer->input->buf[started_at_lexer_cursor];
 
+    token.kind = JSON_TOKEN_LONG;
+
+    if (curr_char_isdigit) {
+      token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume <digit>
       lexer->cursor += 1; // move cursor past <digit>
     }
     else if (curr_char_isplus || curr_char_isminus) {
-      assertm((lexer->cursor + 1) < lexer->input->length,
-              "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol);
-      assertm(isdigit(lexer->input->buf[lexer->cursor + 1]),
-              "Expected a digit at line %zu col %zu but received '%c'",
-              lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]);
+      if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
+        lexer->cursor += 1;
 
-      token.kind = JSON_TOKEN_NUMBER;
+        token.kind = JSON_TOKEN_UNKNOWN;
+        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+
+        return token;
+      }
+
+      /* assertm((lexer->cursor + 1) < lexer->input->length, */
+              /* "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
+      /* assertm(isdigit(lexer->input->buf[lexer->cursor + 1]), */
+              /* "Expected a digit at line %zu col %zu but received '%c'", */
+              /* lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
+
       token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 2); // consume (<plus> | <minus>)<digit>
-
       lexer->cursor += 2; // move cursor past (<plus> | <minus>)<digit>
     }
     else {
@@ -218,13 +231,24 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       lexer->cursor += 1;
     }
 
+    // floating point component
     if (lexer->cursor < lexer->input->length && lexer->input->buf[lexer->cursor] == '.') {
-      assertm((lexer->cursor + 1) < lexer->input->length,
-              "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol);
-      assertm(isdigit(lexer->input->buf[lexer->cursor + 1]),
-              "Expected a digit at line %zu col %zu but received '%c'",
-              lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]);
+      /* assertm((lexer->cursor + 1) < lexer->input->length, */
+      /*         "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
+      /* assertm(isdigit(lexer->input->buf[lexer->cursor + 1]), */
+      /*         "Expected a digit at line %zu col %zu but received '%c'", */
+      /*         lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
 
+      if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
+        lexer->cursor += 1;
+
+        token.kind = JSON_TOKEN_UNKNOWN;
+        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+
+        return token;
+      }
+
+      token.kind = JSON_TOKEN_DOUBLE;
       token.val.length += 2; // consume <dot><digit>
       lexer->cursor += 2; // move cursor past <dot><digit>
 
@@ -232,13 +256,22 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         token.val.length += 1;
         lexer->cursor += 1;
       }
-
-      return token; // float
     }
 
-    if (lexer->cursor < lexer->input->length && lexer->input->buf[lexer->cursor] == 'e') {
-      assertm((lexer->cursor + 1) < lexer->input->length,
-              "Reached end when expected '+', '-' or a digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol);
+    // exponent component
+    if (lexer->cursor < lexer->input->length && (lexer->input->buf[lexer->cursor] == 'e' || lexer->input->buf[lexer->cursor] == 'E')) {
+      /* assertm((lexer->cursor + 1) < lexer->input->length, */
+      /*         "Reached end when expected '+', '-' or a digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
+
+      if ((lexer->cursor + 1) >= lexer->input->length) {
+          lexer->cursor += 1;
+
+          token.kind = JSON_TOKEN_UNKNOWN;
+          token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+
+          return token;
+        }
+
 
       int next_char_isdigit = isdigit(lexer->input->buf[lexer->cursor + 1]);
       int next_char_isplus = lexer->input->buf[lexer->cursor + 1] == '+';
@@ -247,28 +280,43 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       if (next_char_isdigit) {
         token.val.length += 2; // consume <e><digit>
         lexer->cursor += 2; // move cursor past <e><digit>
-      } else if (next_char_isplus || next_char_isminus) {
-        assertm((lexer->cursor + 2) < lexer->input->length,
-                "Reached end when expected a digit at line %zu col %zu", lexer->line, (lexer->cursor + 2) - lexer->bol);
-        assertm(isdigit(lexer->input->buf[lexer->cursor + 2]),
-                "Expected a digit at line %zu col %zu but received '%c'",
-                lexer->line, (lexer->cursor + 2) - lexer->bol, lexer->input->buf[lexer->cursor + 2]);
+      }
+      else if (next_char_isplus || next_char_isminus) {
+        /* assertm((lexer->cursor + 2) < lexer->input->length, */
+        /*         "Reached end when expected a digit at line %zu col %zu", lexer->line, (lexer->cursor + 2) - lexer->bol); */
+        /* assertm(isdigit(lexer->input->buf[lexer->cursor + 2]), */
+        /*         "Expected a digit at line %zu col %zu but received '%c'", */
+        /*         lexer->line, (lexer->cursor + 2) - lexer->bol, lexer->input->buf[lexer->cursor + 2]); */
+
+        if ((lexer->cursor + 2) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 2])) {
+          lexer->cursor += 2;
+
+          token.kind = JSON_TOKEN_UNKNOWN;
+          token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+
+          return token;
+        }
 
         token.val.length += 3; // consume <e>(<plus> | <minus>)<digit>
         lexer->cursor += 3; // move cursor past <e>(<plus> | <minus>)<digit>
-      } else {
-        assertm(false, "Invalid scientific notation number at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol);
+      }
+      else {
+        /* assertm(false, "Invalid scientific notation number at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
+        lexer->cursor += 1;
+
+        token.kind = JSON_TOKEN_UNKNOWN;
+        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+
+        return token;
       }
 
       while (lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
         token.val.length += 1;
         lexer->cursor += 1;
       }
-
-      return token; // scientific notation
     }
 
-    return token; // int
+    return token;
   }
 
   // string
