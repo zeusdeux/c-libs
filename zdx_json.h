@@ -59,6 +59,7 @@ typedef enum {
 typedef struct {
   json_token_kind_t kind;
   sv_t val;
+  const char* err;
 } json_token_t;
 
 typedef struct {
@@ -100,11 +101,6 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
     token.kind = JSON_TOKEN_END;
     return token;
   }
-
-  // TODO: store lexer->input->buf[lexer->cursor] in a variable ffs. This isn't straightforward
-  // as we need the address of that to create a string view with and creating a variable will
-  // create a copy on stack and hence change the address.
-  // Try asserting &variable == &lexer->input->buf[lexer->cursor]
 
   if (isspace(lexer->input->buf[lexer->cursor])) {
     token.kind = JSON_TOKEN_WS;
@@ -209,6 +205,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
         token.kind = JSON_TOKEN_UNKNOWN;
         token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.err = "Expected a digit to follow";
 
         return token;
       }
@@ -244,6 +241,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
         token.kind = JSON_TOKEN_UNKNOWN;
         token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.err = "Expected a digit to follow";
 
         return token;
       }
@@ -268,6 +266,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
           token.kind = JSON_TOKEN_UNKNOWN;
           token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+          token.err = "Expected a '+', '-' or a digit to follow";
 
           return token;
         }
@@ -293,6 +292,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
           token.kind = JSON_TOKEN_UNKNOWN;
           token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+          token.err = "Expected a digit to follow";
 
           return token;
         }
@@ -306,6 +306,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
         token.kind = JSON_TOKEN_UNKNOWN;
         token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.err = "Expected a '+', '-' or a digit to follow";
 
         return token;
       }
@@ -316,7 +317,7 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       }
     }
 
-    return token;
+    return token; // valid LONG or DOUBLE token
   }
 
   // string
@@ -347,6 +348,8 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   token.kind = JSON_TOKEN_UNKNOWN;
   token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+  token.err = "Unrecognised token";
+
   lexer->cursor += 1;
 
   return token;
