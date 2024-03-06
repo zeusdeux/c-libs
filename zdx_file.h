@@ -112,8 +112,8 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   }
 
   /* read full file and close */
-  char *contents_buf = FL_MALLOC((s.st_size + 1) * sizeof(char));
-  size_t bytes_read = fread(contents_buf, sizeof(char), s.st_size, f);
+  char *contents_buf = FL_MALLOC(((size_t)s.st_size + 1) * sizeof(char));
+  size_t bytes_read = fread(contents_buf, sizeof(char), (size_t)s.st_size, f);
   fclose(f);
 
   if (ferror(f)) {
