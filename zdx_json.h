@@ -1,20 +1,50 @@
+/**
+ * MIT License
+ *
+ * Copyright (c) 2024 Mudit
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
 #ifndef ZDX_JSON_H_
 #define ZDX_JSON_H_
 
 #include <stddef.h>
+#include "./zdx_simple_arena.h"
 
 typedef struct json_t json_t;
 
 typedef enum {
-  JSON_NULL = 0,
-  JSON_NUMBER,
-  JSON_BOOLEAN,
-  JSON_STRING,
-  JSON_PARSE_ERROR,
-} json_value_tag;
+  JSON_VALUE_UNKNOWN = 0,
+  JSON_VALUE_NULL,
+  JSON_VALUE_NUMBER,
+  JSON_VALUE_BOOLEAN,
+  JSON_VALUE_STRING,
+} json_value_type_t;
 
-const char *json_type_cstr(json_value_tag jtag);
-json_t json_parse(const char *const json_cstr, const size_t sz);
+/* LEXER */
+const char* json_token_kind_to_cstr(const json_token_kind_t kind)
+json_token_t json_lexer_next_token(json_lexer_t *const lexer);
+
+/* PARSER */
+const char *json_value_type_to_cstr(json_value_type_t value);
+json_t json_parse(arena_t *const arena, const char *const json_cstr, const size_t sz);
 
 #endif // ZDX_JSON_H_
 
