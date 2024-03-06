@@ -343,80 +343,38 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   // string
   if (lexer->input->buf[lexer->cursor] == '"') {
     token.kind = JSON_TOKEN_STRING;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume OPENING <dbl_quote>
+    lexer->cursor += 1; // move cursor past OPENING <dbl_quote>
 
-    lexer->cursor += 1;
+    while(true) {
+      // end of input before end of string so return JSON_TOKEN_UNKNOWN
+      if (lexer->cursor >= lexer->input->length) {
+        token.kind = JSON_TOKEN_UNKNOWN;
+        token.err = "Expected a closing quote (\")";
+        return token;
+      }
 
-    /* size_t no_of_esc_chars_in_succession = 0; */
-    while(lexer->input->buf[lexer->cursor] != '"') {
-      // TODO: handle esc chars in string
-      /* char curr = lexer->input->buf[lexer->cursor]; */
-      /* if (curr == '\') { */
-      /* no_of_esc_chars_in_succession += 1; */
-      /* double esc cancel out, for e.g,. '\\' */
-      /* no_of_esc_chars_in_succession = no_of_esc_chars_in_succession % 2 == 0 ? 0 : no_of_esc_chars_in_succession; */
-      /* } */
+      if (lexer->input->buf[lexer->cursor] == '"' && lexer->input->buf[lexer->cursor - 1] != '\\') {
+        token.val.length += 1; // consume CLOSING <dbl_quote>
+        token.kind = JSON_TOKEN_STRING;
+
+        lexer->cursor += 1; // move cursor past CLOSING <dbl_quote>
+        return token;
+      }
+
       token.val.length += 1;
       lexer->cursor += 1;
     }
 
-    token.val.length += 1; // to swallow end '"'
-    lexer->cursor +=1; // to move cursor past end '"'
-
-    return token;
+    assertm(false, "JSON LEXER: THIS SHOULD BE UNREACHABLE");
   }
 
-  token.kind = JSON_TOKEN_UNKNOWN;
+  token.kind = JSON_TOKEN_UNKNOWN; // this is default but I'm hardcoding just in case I re-order the json_token_type_t enum again
   token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
   token.err = "Unrecognised token";
 
   lexer->cursor += 1;
-
   return token;
-}
-
-typedef struct json_t {
-  json_value_tag type;
-
-  union {
-    double number;
-    bool boolean;
-    char *string;
-    char *parse_err;
-  };
-} json_t;
-
-const char *json_type_cstr(json_value_tag jtag)
-{
-  static const char *const tag_names[] = {
-    "json_null",
-    "json_number",
-    "json_boolean",
-    "json_string",
-    "json_parse_error"
-  };
-
-  return tag_names[jtag];
-}
-
-json_t json_parse(const char *const json, const size_t len)
-{
-
-  sv_t input = sv_trim(sv_from_buf(json, len));
-  json_lexer_t lexer = {
-    .input = &input
-  };
-  json_token_t tok = json_lexer_next_token(&lexer);
-
-  while(tok.kind != JSON_TOKEN_END) {
-    // TODO
-    tok = json_lexer_next_token(&lexer);
-  }
-
-  arena_t ar = arena_create(len * sizeof(json_t));
-  // TODO: parsing
-  arena_free(&ar);
-  return (json_t){0};
 }
 
 #endif // ZDX_JSON_IMPLEMENTATION
