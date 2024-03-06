@@ -58,7 +58,7 @@ json_t json_parse(arena_t *const arena, const char *const json_cstr, const size_
 #include "./zdx_string_view.h"
 
 typedef enum {
-  // val will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
+  // err member will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
   // this is also what zero-initializing json_token_t sets the token.kind to. Sane default imho.
   JSON_TOKEN_UNKNOWN = 0,
   // lexer keeps returning end token when done. Making this the first kind so that we can {0} init a json_token_t value
