@@ -38,10 +38,6 @@ typedef enum {
   JSON_VALUE_STRING,
 } json_value_type_t;
 
-/* LEXER */
-const char* json_token_kind_to_cstr(const json_token_kind_t kind)
-json_token_t json_lexer_next_token(json_lexer_t *const lexer);
-
 /* PARSER */
 const char *json_value_type_to_cstr(json_value_type_t value);
 json_t json_parse(arena_t *const arena, const char *const json_cstr, const size_t sz);
