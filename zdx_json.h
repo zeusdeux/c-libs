@@ -61,15 +61,12 @@ json_t json_parse(arena_t *const arena, const char *const json_cstr, const size_
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "./zdx_string_view.h"
 
-// TODO: setup a wrapper for arena_realloc and #define DA_REALLOC to it here
-// You'll have to likely modify arena_realloc implementation to understand a
-// special value such a -1 for old_sz to make it possible to even write a
-// realloc() compatible wrapper around arena_realloc() for zdx_da.h to consume.
-/* #define ZDX_DA_IMPLEMENTATION */
-/* #include "./zdx_da.h" */
-
 typedef enum {
-  JSON_TOKEN_END = 0, // lexer keeps returning end token when done. Making this the first kind so that we can {0} init a json_token_t value
+  // val will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
+  // this is also what zero-initializing json_token_t sets the token.kind to. Sane default imho.
+  JSON_TOKEN_UNKNOWN = 0,
+  // lexer keeps returning end token when done. Making this the first kind so that we can {0} init a json_token_t value
+  JSON_TOKEN_END,
   JSON_TOKEN_WS,
   JSON_TOKEN_OCURLY,
   JSON_TOKEN_CCURLY,
@@ -83,7 +80,6 @@ typedef enum {
   JSON_TOKEN_DOUBLE, // floating point and floating point in sci notation aka 1e4, 1e+4, 1e-4, etc
 
   JSON_TOKEN_STRING,
-  JSON_TOKEN_UNKNOWN // val will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
 } json_token_kind_t;
 
 typedef struct {
@@ -102,6 +98,7 @@ typedef struct {
 const char* json_token_kind_to_cstr(const json_token_kind_t kind)
 {
   static const char *const token_kinds[] = {
+    "JSON_TOKEN_UNKNOWN",
     "JSON_TOKEN_END",
     "JSON_TOKEN_WS",
     "JSON_TOKEN_OCURLY",
@@ -114,12 +111,10 @@ const char* json_token_kind_to_cstr(const json_token_kind_t kind)
     "JSON_TOKEN_LONG",
     "JSON_TOKEN_DOUBLE",
     "JSON_TOKEN_STRING",
-    "JSON_TOKEN_UNKNOWN"
   };
 
   return token_kinds[kind];
 }
-
 
 json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 {
@@ -220,23 +215,19 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   int curr_char_isminus = lexer->input->buf[lexer->cursor] == '-';
 
   if (curr_char_isdigit || curr_char_isplus || curr_char_isminus) {
-    const size_t started_at_lexer_cursor = lexer->cursor;
-    const char *started_at_char_addr = &lexer->input->buf[started_at_lexer_cursor];
-
-    token.kind = JSON_TOKEN_LONG;
-
     if (curr_char_isdigit) {
+      token.kind = JSON_TOKEN_LONG;
       token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume <digit>
+
       lexer->cursor += 1; // move cursor past <digit>
     }
     else if (curr_char_isplus || curr_char_isminus) {
       if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
-        lexer->cursor += 1;
-
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume (<plus> | <minus>)
         token.err = "Expected a digit to follow";
 
+        lexer->cursor += 1; // move cursor past (<plus> | <minus>)
         return token;
       }
 
@@ -246,11 +237,13 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
               /* "Expected a digit at line %zu col %zu but received '%c'", */
               /* lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
 
+      token.kind = JSON_TOKEN_LONG;
       token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 2); // consume (<plus> | <minus>)<digit>
+                                                                     //
       lexer->cursor += 2; // move cursor past (<plus> | <minus>)<digit>
     }
     else {
-      assertm(false, "THIS SHOULD BE UNREACHABLE");
+      assertm(false, "JSON LEXER: THIS SHOULD BE UNREACHABLE");
     }
 
     while(lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
@@ -267,12 +260,11 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       /*         lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
 
       if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
-        lexer->cursor += 1;
-
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.val.length += 1; // consume <dot>
         token.err = "Expected a digit to follow";
 
+        lexer->cursor += 1; // move cursor past <dot>
         return token;
       }
 
@@ -292,12 +284,11 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       /*         "Reached end when expected '+', '-' or a digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
 
       if ((lexer->cursor + 1) >= lexer->input->length) {
-          lexer->cursor += 1;
-
           token.kind = JSON_TOKEN_UNKNOWN;
-          token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+          token.val.length += 1; // consume (<e> | <E>)
           token.err = "Expected a '+', '-' or a digit to follow";
 
+          lexer->cursor += 1; // move cursor past (<e> | <E>)
           return token;
         }
 
@@ -318,12 +309,12 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         /*         lexer->line, (lexer->cursor + 2) - lexer->bol, lexer->input->buf[lexer->cursor + 2]); */
 
         if ((lexer->cursor + 2) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 2])) {
-          lexer->cursor += 2;
 
           token.kind = JSON_TOKEN_UNKNOWN;
-          token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+          token.val.length += 2; // consume (<e> | <E>)(<plus> | <minus>)
           token.err = "Expected a digit to follow";
 
+          lexer->cursor += 2; // move cursor past (<e> | <E>)(<plus> | <minus>)
           return token;
         }
 
@@ -332,12 +323,11 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       }
       else {
         /* assertm(false, "Invalid scientific notation number at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
-        lexer->cursor += 1;
-
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val = sv_from_buf(started_at_char_addr, lexer->cursor - started_at_lexer_cursor);
+        token.val.length += 1;
         token.err = "Expected a '+', '-' or a digit to follow";
 
+        lexer->cursor += 1; // move cursor past (<e> | <E>)
         return token;
       }
 
