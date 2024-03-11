@@ -26,34 +26,43 @@
 #define ZDX_JSON_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include "./zdx_simple_arena.h"
-
-typedef struct json_t json_t;
 
 typedef enum {
   JSON_VALUE_UNKNOWN = 0,
   JSON_VALUE_NULL,
-  JSON_VALUE_NUMBER,
+  JSON_VALUE_LONG,
+  JSON_VALUE_DOUBLE,
   JSON_VALUE_BOOLEAN,
   JSON_VALUE_STRING,
-} json_value_type_t;
+} json_value_kind_t;
+
+typedef struct json_value_t {
+  json_value_kind_t kind;
+  union {
+    const void *null;
+    long long num_long;
+    double num_double;
+    bool boolean;
+    char *string;
+  };
+  const char *err;
+} json_value_t;
 
 /* PARSER */
-const char *json_value_type_to_cstr(json_value_type_t value);
-json_t json_parse(arena_t *const arena, const char *const json_cstr, const size_t sz);
+json_value_t *json_parse(arena_t *const arena, const char *const json_cstr);
 
 #endif // ZDX_JSON_H_
 
 #ifdef ZDX_JSON_IMPLEMENTATION
 
-#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
 #include "./zdx_util.h"
-
-#define ZDX_SIMPLE_ARENA_IMPLEMENTATION
-#include "./zdx_simple_arena.h"
-
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "./zdx_string_view.h"
 
@@ -81,7 +90,7 @@ typedef enum {
 typedef struct {
   json_token_kind_t kind;
   sv_t val;
-  const char* err;
+  const char *err;
 } json_token_t;
 
 typedef struct {
@@ -91,7 +100,7 @@ typedef struct {
   sv_t *input;
 } json_lexer_t;
 
-const char* json_token_kind_to_cstr(const json_token_kind_t kind)
+static const char* json_token_kind_to_cstr(const json_token_kind_t kind)
 {
   static const char *const token_kinds[] = {
     "JSON_TOKEN_UNKNOWN",
@@ -112,7 +121,7 @@ const char* json_token_kind_to_cstr(const json_token_kind_t kind)
   return token_kinds[kind];
 }
 
-json_token_t json_lexer_next_token(json_lexer_t *const lexer)
+static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 {
   json_token_t token = {0};
 
@@ -373,4 +382,107 @@ json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   return token;
 }
 
+static const char *json_value_kind_to_cstr(json_value_kind_t kind)
+{
+  static const char *const value_kinds[] = {
+    "JSON_VALUE_UNKNOWN",
+    "JSON_VALUE_NULL",
+    "JSON_VALUE_LONG",
+    "JSON_VALUE_DOUBLE",
+    "JSON_VALUE_BOOLEAN",
+    "JSON_VALUE_STRING",
+  };
+
+  return value_kinds[kind];
+}
+
+// TODO: HANDLE ERRORS ALL ACROSS THIS CODE
+json_value_t *json_parse(arena_t *const arena, const char *const json_cstr)
+{
+  json_value_t *jv = arena_calloc(arena, 1, sizeof(json_value_t));
+  sv_t input = sv_from_cstr(json_cstr);
+  json_lexer_t lexer = {
+    .input = &input
+  };
+  /* printf("cursor %zu line %zu bol %zu "SV_FMT"\n", lexer.cursor, lexer.line, lexer.bol, sv_fmt_args(*lexer.input)); */
+  json_token_t tok = json_lexer_next_token(&lexer);
+
+  while(tok.kind != JSON_TOKEN_END) {
+    /* printf("cursor %zu line %zu bol %zu kind %s -> '"SV_FMT"'\n", lexer.cursor, lexer.line, lexer.bol, json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
+    switch (tok.kind) {
+    case JSON_TOKEN_WS: break; // ignore whitespace
+                               //
+    case JSON_TOKEN_SYMBOL: {
+      if (sv_eq_cstr(tok.val, "null")) {
+        jv->kind = JSON_VALUE_NULL;
+        jv->null = NULL;
+      }
+      else if (sv_eq_cstr(tok.val, "true")) {
+        jv->kind = JSON_VALUE_BOOLEAN;
+        jv->boolean = true;
+      }
+      else if (sv_eq_cstr(tok.val, "false")) {
+        jv->kind = JSON_VALUE_BOOLEAN;
+        jv->boolean = false;
+      }
+      else {
+        size_t sz = 128; // TODO: Figure out an upperbound for this that makes sense
+        char *err = arena_calloc(arena, 1, sz);
+
+        jv->kind = JSON_VALUE_UNKNOWN;
+        snprintf(err, sz, "Invalid symbol '"SV_FMT"' at line %zu and col %zu",
+                 sv_fmt_args(tok.val),
+                 lexer.line + 1 /* line is 0 index */,
+                 lexer.cursor - lexer.bol - tok.val.length + 1 /* +1 for managing 0 index */);
+        jv->err = err;
+      }
+    } break;
+
+    case JSON_TOKEN_LONG: {
+      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+
+      memcpy(str, tok.val.buf, tok.val.length);
+
+      jv->kind = JSON_VALUE_LONG;
+      jv->num_long = strtoll(str, NULL, 10);
+    } break;
+
+    case JSON_TOKEN_DOUBLE: {
+      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+
+      memcpy(str, tok.val.buf, tok.val.length);
+
+      jv->kind = JSON_VALUE_DOUBLE;
+      jv->num_double = strtod(str, NULL);
+    } break;
+
+      // TODO: handle unicode and other escapes that expand to strings
+    case JSON_TOKEN_STRING: {
+      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+
+      memcpy(str, tok.val.buf, tok.val.length);
+      jv->kind = JSON_VALUE_STRING;
+      jv->string = str;
+    } break;
+
+    case JSON_TOKEN_UNKNOWN:
+    default: {
+      size_t sz = (tok.err ? strlen(tok.err) : 128) + 128;
+      char *err = arena_calloc(arena, 1, sz);
+
+      jv->kind = JSON_VALUE_UNKNOWN;
+      snprintf(err, sz, "%s '"SV_FMT"' at line %zu and col %zu",
+               tok.err,
+               sv_fmt_args(tok.val),
+               lexer.line + 1 /* line is 0 index */,
+               lexer.cursor - lexer.bol - tok.val.length + 1 /* +1 for managing 0 index */);
+      jv->err = err;
+    } break;
+    }
+
+    tok = json_lexer_next_token(&lexer);
+  }
+
+  return jv;
+}
 #endif // ZDX_JSON_IMPLEMENTATION
