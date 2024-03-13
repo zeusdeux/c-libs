@@ -30,10 +30,9 @@
 #include "./zdx_simple_arena.h"
 
 typedef enum {
-  JSON_VALUE_UNKNOWN = 0,
+  JSON_VALUE_UNEXPECTED = 0,
   JSON_VALUE_NULL,
-  JSON_VALUE_LONG,
-  JSON_VALUE_DOUBLE,
+  JSON_VALUE_NUMBER,
   JSON_VALUE_BOOLEAN,
   JSON_VALUE_STRING,
 } json_value_kind_t;
@@ -42,8 +41,7 @@ typedef struct json_value_t {
   json_value_kind_t kind;
   union {
     const void *null;
-    long long num_long;
-    double num_double;
+    double number;
     bool boolean;
     char *string;
   };
@@ -51,7 +49,7 @@ typedef struct json_value_t {
 } json_value_t;
 
 /* PARSER */
-json_value_t *json_parse(arena_t *const arena, const char *const json_cstr);
+json_value_t json_parse(arena_t *const arena, const char *const json_cstr);
 
 #endif // ZDX_JSON_H_
 
@@ -251,6 +249,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       assertm(false, "JSON LEXER: THIS SHOULD BE UNREACHABLE");
     }
 
+    // TODO: due to this loop, we even lex "00.2313" as double which should technically fail parsing
     while(lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
       token.val.length += 1;
       lexer->cursor += 1;
@@ -382,13 +381,32 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   return token;
 }
 
+static json_token_t json_lexer_peek_token(json_lexer_t *const lexer)
+{
+  json_lexer_t before = {
+    .cursor = lexer->cursor,
+    .line = lexer->line,
+    .bol = lexer->bol,
+    .input = lexer->input
+  };
+
+  json_token_t tok = json_lexer_next_token(lexer);
+
+  /* printf("<< kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
+
+  lexer->cursor = before.cursor;
+  lexer->line = before.line;
+  lexer->bol = before.bol;
+  lexer->input = before.input;
+
+  return tok;
+}
 static const char *json_value_kind_to_cstr(json_value_kind_t kind)
 {
   static const char *const value_kinds[] = {
-    "JSON_VALUE_UNKNOWN",
+    "JSON_VALUE_UNEXPECTED",
     "JSON_VALUE_NULL",
-    "JSON_VALUE_LONG",
-    "JSON_VALUE_DOUBLE",
+    "JSON_VALUE_NUMBER",
     "JSON_VALUE_BOOLEAN",
     "JSON_VALUE_STRING",
   };
@@ -396,91 +414,187 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
   return value_kinds[kind];
 }
 
-// TODO: HANDLE ERRORS ALL ACROSS THIS CODE
-json_value_t *json_parse(arena_t *const arena, const char *const json_cstr)
+static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *const lexer, json_token_t tok, const char *const err_prefix)
 {
-  json_value_t *jv = arena_calloc(arena, 1, sizeof(json_value_t));
+
+  /* printf(">> kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
+  json_value_t jv = {0};
+
+  assertm(err_prefix && strlen(err_prefix) > 0,
+          "Expected an error message but received %s (%p)", err_prefix, (void *)err_prefix);
+
+  size_t sz = strlen(err_prefix) + 128;
+  char *err = arena_calloc(arena, 1, sz);
+
+  snprintf(err, sz, "%s at line %zu and col %zu",
+           err_prefix,
+           lexer->line + 1 /* line is 0 index */,
+           lexer->cursor - lexer->bol - tok.val.length + 1 /* +1 for managing 0 index */);
+
+  jv.kind = JSON_VALUE_UNEXPECTED;
+  jv.err = err;
+
+  return jv;
+}
+
+static json_value_t json_parse_symbol(arena_t *const arena, json_lexer_t *const lexer)
+{
+  json_value_t jv = {0};
+  json_token_t tok = json_lexer_next_token(lexer);
+
+  assertm(tok.kind == JSON_TOKEN_SYMBOL, "Expected a symbol token but received %s", json_token_kind_to_cstr(tok.kind));
+
+  if (sv_eq_cstr(tok.val, "null")) {
+    jv.kind = JSON_VALUE_NULL;
+    jv.null = NULL;
+  }
+  else if (sv_eq_cstr(tok.val, "true")) {
+    jv.kind = JSON_VALUE_BOOLEAN;
+    jv.boolean = true;
+  }
+  else if (sv_eq_cstr(tok.val, "false")) {
+    jv.kind = JSON_VALUE_BOOLEAN;
+    jv.boolean = false;
+  }
+  else {
+    const char* err_prefix = "Invalid symbol";
+    size_t sz = strlen(err_prefix) + tok.val.length + 16; // 16 bytes are YOLO padding just in case
+    char *err = arena_calloc(arena, 1, sz);
+
+    snprintf(err, sz, "%s '"SV_FMT"'",
+             err_prefix,
+             sv_fmt_args(tok.val));
+
+    jv = json_build_unexpected(arena, lexer, tok, err);
+  }
+
+  return jv;
+}
+
+static json_value_t json_parse_number(arena_t *const arena, json_lexer_t *const lexer)
+{
+  json_value_t jv = {0};
+  json_token_t tok = json_lexer_next_token(lexer);
+
+  assertm(tok.kind == JSON_TOKEN_LONG || tok.kind == JSON_TOKEN_DOUBLE,
+          "Expected a long or double token but received %s", json_token_kind_to_cstr(tok.kind));
+
+  char *str = arena_calloc(arena, 1, tok.val.length + 1);
+  memcpy(str, tok.val.buf, tok.val.length);
+
+  /* if (tok.kind == JSON_TOKEN_LONG) { */
+    /* jv.num_long = strtoll(str, NULL, 10); */
+  /* } */
+
+  /* if (tok.kind == JSON_TOKEN_DOUBLE) { */
+    /* jv.num_double = strtod(str, NULL); */
+  /* } */
+
+  // TODO: ERROR HANDLING
+  jv.number = strtod(str, NULL); // strtoll doesn't parse exponent form hence using only strtod which does
+  jv.kind = JSON_VALUE_NUMBER;
+
+  return jv;
+}
+
+// TODO: handle unicode and other escapes that expand to strings
+static json_value_t json_parse_string(arena_t *const arena, json_lexer_t *const lexer)
+{
+  json_value_t jv = {0};
+  json_token_t tok = json_lexer_next_token(lexer);
+
+  assertm(tok.kind == JSON_TOKEN_STRING, "Expected a string token but received %s", json_token_kind_to_cstr(tok.kind));
+
+  char *str = arena_calloc(arena, 1, tok.val.length + 1);
+
+  memcpy(str, tok.val.buf, tok.val.length);
+  jv.kind = JSON_VALUE_STRING;
+  jv.string = str;
+
+  return jv;
+}
+
+static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const lexer)
+{
+  json_token_t tok = json_lexer_next_token(lexer);
+
+  assertm(tok.kind == JSON_TOKEN_UNKNOWN, "Expected an unknown token but received %s", json_token_kind_to_cstr(tok.kind));
+  assertm(tok.err, "Expected unknown token to carry an error but received %s (%p)", tok.err, (void *)tok.err);
+
+  size_t sz = strlen(tok.err) + tok.val.length + 16; // 16 bytes of padding just in case we run out of space
+  char *err = arena_calloc(arena, 1, sz);
+
+  snprintf(err, sz, "%s '"SV_FMT"'",
+           tok.err,
+           sv_fmt_args(tok.val));
+
+  return json_build_unexpected(arena, lexer, tok, err);
+}
+
+// TODO: HANDLE ERRORS ALL ACROSS THIS CODE
+json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
+{
+  json_value_t jv = {0};
   sv_t input = sv_from_cstr(json_cstr);
   json_lexer_t lexer = {
     .input = &input
   };
-  /* printf("cursor %zu line %zu bol %zu "SV_FMT"\n", lexer.cursor, lexer.line, lexer.bol, sv_fmt_args(*lexer.input)); */
-  json_token_t tok = json_lexer_next_token(&lexer);
 
-  while(tok.kind != JSON_TOKEN_END) {
-    /* printf("cursor %zu line %zu bol %zu kind %s -> '"SV_FMT"'\n", lexer.cursor, lexer.line, lexer.bol, json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
-    switch (tok.kind) {
-    case JSON_TOKEN_WS: break; // ignore whitespace
-                               //
-    case JSON_TOKEN_SYMBOL: {
-      if (sv_eq_cstr(tok.val, "null")) {
-        jv->kind = JSON_VALUE_NULL;
-        jv->null = NULL;
-      }
-      else if (sv_eq_cstr(tok.val, "true")) {
-        jv->kind = JSON_VALUE_BOOLEAN;
-        jv->boolean = true;
-      }
-      else if (sv_eq_cstr(tok.val, "false")) {
-        jv->kind = JSON_VALUE_BOOLEAN;
-        jv->boolean = false;
-      }
-      else {
-        size_t sz = 128; // TODO: Figure out an upperbound for this that makes sense
-        char *err = arena_calloc(arena, 1, sz);
+  // get token without changing lexer state
+  // as it's on the json_parse_* functions to
+  // consume the token and move the lexer forward
+  json_token_t tok = json_lexer_peek_token(&lexer);
 
-        jv->kind = JSON_VALUE_UNKNOWN;
-        snprintf(err, sz, "Invalid symbol '"SV_FMT"' at line %zu and col %zu",
-                 sv_fmt_args(tok.val),
-                 lexer.line + 1 /* line is 0 index */,
-                 lexer.cursor - lexer.bol - tok.val.length + 1 /* +1 for managing 0 index */);
-        jv->err = err;
-      }
-    } break;
+  // ignore leading whitespace
+  while(tok.kind == JSON_TOKEN_WS) {
+    json_lexer_next_token(&lexer); // move lexer forward
+    // get first token without changing lexer state aka don't consume token
+    // as the json_parse_* function below do that
+    tok = json_lexer_peek_token(&lexer);
+  }
 
-    case JSON_TOKEN_LONG: {
-      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+  switch (tok.kind) {
+  case JSON_TOKEN_SYMBOL: {
+    jv = json_parse_symbol(arena, &lexer);
+  } break;
 
-      memcpy(str, tok.val.buf, tok.val.length);
+  case JSON_TOKEN_LONG:
+  case JSON_TOKEN_DOUBLE: {
+    jv = json_parse_number(arena, &lexer);
+  } break;
 
-      jv->kind = JSON_VALUE_LONG;
-      jv->num_long = strtoll(str, NULL, 10);
-    } break;
+  case JSON_TOKEN_STRING: {
+    jv = json_parse_string(arena, &lexer);
+  } break;
 
-    case JSON_TOKEN_DOUBLE: {
-      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+  case JSON_TOKEN_UNKNOWN: {
+    jv = json_parse_unknown(arena, &lexer);
+  } break;
 
-      memcpy(str, tok.val.buf, tok.val.length);
+  case JSON_TOKEN_END: return json_build_unexpected(arena, &lexer, tok, "Unexpected end of input");
 
-      jv->kind = JSON_VALUE_DOUBLE;
-      jv->num_double = strtod(str, NULL);
-    } break;
+  default: {
+    assertm(false, "Unknown token kind '"SV_FMT"'", sv_fmt_args(tok.val));
+  } break;
+  }
 
-      // TODO: handle unicode and other escapes that expand to strings
-    case JSON_TOKEN_STRING: {
-      char *str = arena_calloc(arena, 1, tok.val.length + 1);
+  // consume next token as no more json_parse_* calls below
+  tok = json_lexer_next_token(&lexer);
 
-      memcpy(str, tok.val.buf, tok.val.length);
-      jv->kind = JSON_VALUE_STRING;
-      jv->string = str;
-    } break;
+  // ignore trailing whitespace
+  while(tok.kind == JSON_TOKEN_WS) {
+    tok = json_lexer_next_token(&lexer); // consume whitespace token as no more json_parse_* calls below
+  }
 
-    case JSON_TOKEN_UNKNOWN:
-    default: {
-      size_t sz = (tok.err ? strlen(tok.err) : 128) + 128;
-      char *err = arena_calloc(arena, 1, sz);
+  if (tok.kind != JSON_TOKEN_END) {
+    const size_t sz = 128;
+    char *err = arena_calloc(arena, 1, sz);
 
-      jv->kind = JSON_VALUE_UNKNOWN;
-      snprintf(err, sz, "%s '"SV_FMT"' at line %zu and col %zu",
-               tok.err,
-               sv_fmt_args(tok.val),
-               lexer.line + 1 /* line is 0 index */,
-               lexer.cursor - lexer.bol - tok.val.length + 1 /* +1 for managing 0 index */);
-      jv->err = err;
-    } break;
-    }
+    snprintf(err, sz, "Expected end of input but received '"SV_FMT"' (%s)",
+             sv_fmt_args(tok.val),
+             json_token_kind_to_cstr(tok.kind));
 
-    tok = json_lexer_next_token(&lexer);
+    return json_build_unexpected(arena, &lexer, tok, err);
   }
 
   return jv;
