@@ -538,6 +538,20 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
   return json_build_unexpected(arena, lexer, tok, err);
 }
 
+static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const lexer)
+{
+  (void) arena;
+  (void) lexer;
+  assertm(false, "TODO: Implement");
+}
+
+static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const lexer)
+{
+  (void) arena;
+  (void) lexer;
+  assertm(false, "TODO: Implement");
+}
+
 // TODO: HANDLE ERRORS ALL ACROSS THIS CODE
 json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
 {
@@ -576,6 +590,14 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
 
   case JSON_TOKEN_UNKNOWN: {
     jv = json_parse_unknown(arena, &lexer);
+  } break;
+
+  case JSON_TOKEN_OSQR: {
+    jv = json_parse_array(arena, &lexer);
+  } break;
+
+  case JSON_TOKEN_OCURLY: {
+    jv = json_parse_object(arena, &lexer);
   } break;
 
   case JSON_TOKEN_END: return json_build_unexpected(arena, &lexer, tok, "Unexpected end of input");
