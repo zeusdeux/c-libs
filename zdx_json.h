@@ -246,7 +246,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       lexer->cursor += 2; // move cursor past (<plus> | <minus>)<digit>
     }
     else {
-      assertm(false, "JSON LEXER: THIS SHOULD BE UNREACHABLE");
+      assertm(false, "JSON LEXER: UNREACHABLE: Expected number to start with digit, '+' or '-'");
     }
 
     // TODO: due to this loop, we even lex "00.2313" as double which should technically fail parsing
@@ -370,7 +370,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       lexer->cursor += 1;
     }
 
-    assertm(false, "JSON LEXER: THIS SHOULD BE UNREACHABLE");
+    assertm(false, "JSON LEXER: UNREACHABLE: Expected JSON_TOKEN_STRING or JSON_TOKEN_UNKNOWN to have already been returned");
   }
 
   token.kind = JSON_TOKEN_UNKNOWN; // this is default but I'm hardcoding just in case I re-order the json_token_type_t enum again
@@ -505,9 +505,16 @@ static json_value_t json_parse_string(arena_t *const arena, json_lexer_t *const 
 
   assertm(tok.kind == JSON_TOKEN_STRING, "Expected a string token but received %s", json_token_kind_to_cstr(tok.kind));
 
-  char *str = arena_calloc(arena, 1, tok.val.length + 1);
+  char *str = arena_calloc(arena, 1, tok.val.length);
 
-  memcpy(str, tok.val.buf, tok.val.length);
+  /**
+   * tok.val.buf + 1 to remove leading dbq qt (")
+   * tok.val.length - 2 to remove trailing dbl qt (") and \0 from original tok.val contents
+   * Also, we don't add a \0 at the end as we use arena_calloc and thus init whole string
+   * with \0 before memcpy-ing
+   **/
+  memcpy(str, tok.val.buf + 1, tok.val.length - 2);
+
   jv.kind = JSON_VALUE_STRING;
   jv.string = str;
 
@@ -574,7 +581,7 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
   case JSON_TOKEN_END: return json_build_unexpected(arena, &lexer, tok, "Unexpected end of input");
 
   default: {
-    assertm(false, "Unknown token kind '"SV_FMT"'", sv_fmt_args(tok.val));
+    assertm(false, "JSON PARSER: UNREACHABLE: Cannot parse unknown token kind '"SV_FMT"'", sv_fmt_args(tok.val));
   } break;
   }
 
