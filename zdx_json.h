@@ -35,6 +35,7 @@ typedef enum {
   JSON_VALUE_NUMBER,
   JSON_VALUE_BOOLEAN,
   JSON_VALUE_STRING,
+  JSON_VALUE_ARRAY,
 } json_value_kind_t;
 
 typedef struct json_value_t {
@@ -44,6 +45,11 @@ typedef struct json_value_t {
     double number;
     bool boolean;
     char *string;
+    struct {
+      size_t length;
+      size_t capacity;
+      struct json_value_t *items;
+    } array;
   };
   const char *err;
 } json_value_t;
@@ -409,6 +415,7 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
     "JSON_VALUE_NUMBER",
     "JSON_VALUE_BOOLEAN",
     "JSON_VALUE_STRING",
+    "JSON_VALUE_ARRAY",
   };
 
   return value_kinds[kind];
@@ -538,11 +545,30 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
   return json_build_unexpected(arena, lexer, tok, err);
 }
 
+#define json_da_push(arena, arr, item) {                                          \
+    while(((arr)->length + 1) > (arr)->capacity) {                                \
+      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : 256;              \
+      (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length, new_sz); \
+      (arr)->capacity = new_sz;                                                   \
+    }                                                                             \
+    (arr)->items[(arr)->length++] = (item);                                       \
+  } while(0)
+
+#define JSON_MAX_ARRAY_DEPTH 256
+
 static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const lexer)
 {
+  json_value_t jvs[JSON_MAX_ARRAY_DEPTH] = {0};
+  json_token_t tok = json_lexer_next_token(lexer);
   (void) arena;
-  (void) lexer;
+  (void) jvs;
+
+  assertm(tok.kind == JSON_TOKEN_OSQR, "Expected an opening '[' but received %s", json_token_kind_to_cstr(tok.kind));
   assertm(false, "TODO: Implement");
+
+  while(true) {
+  }
+
 }
 
 static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const lexer)
