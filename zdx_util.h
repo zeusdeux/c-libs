@@ -51,7 +51,7 @@
 
 #define bail(...) do {                          \
     log(L_ERROR, __VA_ARGS__);                  \
-    exit(1);                                    \
+    exit(EXIT_FAILURE);                         \
   } while(0);
 
 #if defined(ZDX_TRACE_ENABLE)
