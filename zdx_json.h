@@ -61,12 +61,15 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr);
 
 #ifdef ZDX_JSON_IMPLEMENTATION
 
+// TODO: HANDLE ERRORS ALL ACROSS THE CODE IN THIS FILE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
 #include "./zdx_util.h"
+#define ZDX_SIMPLE_ARENA_IMPLEMENTATION /* consumers only need to include the header for simple arena for the functions */
+#include "./zdx_simple_arena.h"
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "./zdx_string_view.h"
 
@@ -429,7 +432,6 @@ static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *co
 
   assertm(err_prefix && strlen(err_prefix) > 0,
           "Expected an error message but received %s (%p)", err_prefix, (void *)err_prefix);
-
   size_t sz = strlen(err_prefix) + 128;
   char *err = arena_calloc(arena, 1, sz);
 
@@ -489,14 +491,6 @@ static json_value_t json_parse_number(arena_t *const arena, json_lexer_t *const 
   char *str = arena_calloc(arena, 1, tok.val.length + 1);
   memcpy(str, tok.val.buf, tok.val.length);
 
-  /* if (tok.kind == JSON_TOKEN_LONG) { */
-    /* jv.num_long = strtoll(str, NULL, 10); */
-  /* } */
-
-  /* if (tok.kind == JSON_TOKEN_DOUBLE) { */
-    /* jv.num_double = strtod(str, NULL); */
-  /* } */
-
   // TODO: ERROR HANDLING
   jv.number = strtod(str, NULL); // strtoll doesn't parse exponent form hence using only strtod which does
   jv.kind = JSON_VALUE_NUMBER;
@@ -545,31 +539,114 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
   return json_build_unexpected(arena, lexer, tok, err);
 }
 
-#define JSON_DA_MIN_CAP 256
-#define json_da_push(arena, arr, item) {                                          \
-    while(((arr)->length + 1) > (arr)->capacity) {                                \
-      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAP;  \
-      (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length, new_sz); \
-      (arr)->capacity = new_sz;                                                   \
-    }                                                                             \
-    (arr)->items[(arr)->length++] = (item);                                       \
+#ifndef JSON_DA_MIN_CAP
+#define JSON_DA_MIN_CAP 8
+#endif // JSON_DA_MIN_CAP
+
+#define json_da_push(arena, arr, item) {                                                           \
+    while(((arr)->length + 1) > (arr)->capacity) {                                                 \
+      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAP;                   \
+      (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length, new_sz * sizeof((item))); \
+                                                                                                   \
+      dbg("++ arr->items %p \t| arr->capacity %zu \t| arr->length %zu \t\n",                       \
+          (void *)(arr)->items, (arr)->capacity, (arr)->length);                                   \
+                                                                                                   \
+      if ((arena)->err) {                                                                          \
+        bail("Error: %s", (arena)->err);                                                           \
+      }                                                                                            \
+                                                                                                   \
+      (arr)->capacity = new_sz;                                                                    \
+    }                                                                                              \
+                                                                                                   \
+    (arr)->items[(arr)->length++] = (item);                                                        \
   } while(0)
 
+#ifndef JSON_MAX_ARRAY_DEPTH
 #define JSON_MAX_ARRAY_DEPTH 256
+#endif // JSON_MAX_ARRAY_DEPTH
 
 static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const lexer)
 {
   json_value_t jvs[JSON_MAX_ARRAY_DEPTH] = {0};
-  json_token_t tok = json_lexer_next_token(lexer);
-  (void) arena;
-  (void) jvs;
+  long int jvs_length = 0; // as this can go negative and long as size_t is unsigned long
 
+  json_token_t tok = json_lexer_next_token(lexer);
   assertm(tok.kind == JSON_TOKEN_OSQR, "Expected an opening '[' but received %s", json_token_kind_to_cstr(tok.kind));
-  assertm(false, "TODO: Implement");
 
   while(true) {
+    if (tok.kind == JSON_TOKEN_OSQR) {
+      // we are trying to go another level deeper hence this check
+      if (jvs_length >= JSON_MAX_ARRAY_DEPTH) {
+        break;
+      }
+      jvs[jvs_length++] = (json_value_t){
+        .kind = JSON_VALUE_ARRAY
+      };
+    }
+    else if (tok.kind == JSON_TOKEN_CSQR) {
+      if (jvs_length <= 0) {
+        return json_build_unexpected(arena, lexer, tok, "Unexpected array close with no array opened");
+      }
+
+      if (jvs_length == 1) {
+        return jvs[0];
+      }
+
+      /* insert the nested array into the parent if we have any nested arrays (denoted by jvs_length > 1) */
+      if (jvs_length > 1) {
+        json_da_push(arena, &jvs[jvs_length - 2].array, jvs[jvs_length - 1]);
+      }
+
+      jvs_length -= 1;
+    }
+    else if (tok.kind == JSON_TOKEN_END) {
+      return json_build_unexpected(arena, lexer, tok, "Unexpected end of input while parsing an array");
+    }
+    else {
+      // TODO: figure out how to do this switch case better
+      switch (tok.kind) {
+      case JSON_TOKEN_WS:
+      case JSON_TOKEN_COMMA:
+        break;
+      case JSON_TOKEN_SYMBOL: {
+        json_da_push(arena, &jvs[jvs_length - 1].array, json_parse_symbol(arena, lexer));
+      } break;
+
+      case JSON_TOKEN_LONG:
+      case JSON_TOKEN_DOUBLE: {
+        json_da_push(arena, &jvs[jvs_length - 1].array, json_parse_number(arena, lexer));
+      } break;
+
+      case JSON_TOKEN_STRING: {
+        json_da_push(arena, &jvs[jvs_length - 1].array, json_parse_string(arena, lexer));
+      } break;
+
+      case JSON_TOKEN_UNKNOWN: {
+        json_da_push(arena, &jvs[jvs_length - 1].array, json_parse_unknown(arena, lexer));
+      } break;
+
+      default: {
+        assertm(false,
+                "JSON PARSER: UNREACHABLE: While parsing array, cannot parse unknown token kind '"SV_FMT"'",
+                sv_fmt_args(tok.val));
+      } break;
+      }
+
+    }
+    tok = json_lexer_peek_token(lexer);
+
+    /* consume these tokens but leave the other "proper" value tokens lexer for their respective parsers to consume */
+    if (tok.kind == JSON_TOKEN_OSQR ||
+        tok.kind == JSON_TOKEN_CSQR ||
+        tok.kind == JSON_TOKEN_WS   ||
+        tok.kind == JSON_TOKEN_COMMA) {
+      tok = json_lexer_next_token(lexer);
+    }
   }
 
+  return json_build_unexpected(arena, lexer, tok,
+                               "Reached maximum depth of nested arrays"
+                               " (consider reducing depth or configuring JSON_MAX_ARRAY_DEPTH macro)");
 }
 
 static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const lexer)
@@ -579,7 +656,6 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
   assertm(false, "TODO: Implement");
 }
 
-// TODO: HANDLE ERRORS ALL ACROSS THIS CODE
 json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
 {
   json_value_t jv = {0};
