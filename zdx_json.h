@@ -68,8 +68,6 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr);
 #include <ctype.h>
 
 #include "./zdx_util.h"
-#define ZDX_SIMPLE_ARENA_IMPLEMENTATION /* consumers only need to include the header for simple arena for the functions */
-#include "./zdx_simple_arena.h"
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "./zdx_string_view.h"
 
@@ -96,7 +94,7 @@ typedef enum {
 
 typedef struct {
   json_token_kind_t kind;
-  sv_t val;
+  sv_t value;
   const char *err;
 } json_token_t;
 
@@ -141,7 +139,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (isspace(lexer->input->buf[lexer->cursor])) {
     token.kind = JSON_TOKEN_WS;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     if (lexer->input->buf[lexer->cursor] == '\n') {
       lexer->line += 1;
@@ -154,7 +152,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == '{') {
     token.kind = JSON_TOKEN_OCURLY;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -162,7 +160,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == '}') {
     token.kind = JSON_TOKEN_CCURLY;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -170,7 +168,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == '[') {
     token.kind = JSON_TOKEN_OSQR;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -178,7 +176,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == ']') {
     token.kind = JSON_TOKEN_CSQR;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -186,7 +184,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == ':') {
     token.kind = JSON_TOKEN_COLON;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -194,7 +192,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
   if (lexer->input->buf[lexer->cursor] == ',') {
     token.kind = JSON_TOKEN_COMMA;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
     return token;
@@ -203,7 +201,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   // null, true, false
   if (isalpha(lexer->input->buf[lexer->cursor])) {
     token.kind = JSON_TOKEN_SYMBOL;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
 
     lexer->cursor += 1;
 
@@ -211,7 +209,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
     // consumed character is a valid token and hence we have something to return
     // even when this loop doesn't run.
     while(lexer->cursor < lexer->input->length && isalpha(lexer->input->buf[lexer->cursor])) {
-      token.val.length += 1;
+      token.value.length += 1;
       lexer->cursor += 1;
     }
     return token;
@@ -229,14 +227,14 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   if (curr_char_isdigit || curr_char_isplus || curr_char_isminus) {
     if (curr_char_isdigit) {
       token.kind = JSON_TOKEN_LONG;
-      token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume <digit>
+      token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume <digit>
 
       lexer->cursor += 1; // move cursor past <digit>
     }
     else if (curr_char_isplus || curr_char_isminus) {
       if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume (<plus> | <minus>)
+        token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume (<plus> | <minus>)
         token.err = "Expected a digit to follow";
 
         lexer->cursor += 1; // move cursor past (<plus> | <minus>)
@@ -250,7 +248,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
               /* lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
 
       token.kind = JSON_TOKEN_LONG;
-      token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 2); // consume (<plus> | <minus>)<digit>
+      token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 2); // consume (<plus> | <minus>)<digit>
                                                                      //
       lexer->cursor += 2; // move cursor past (<plus> | <minus>)<digit>
     }
@@ -260,7 +258,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
     // TODO: due to this loop, we even lex "00.2313" as double which should technically fail parsing
     while(lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
-      token.val.length += 1;
+      token.value.length += 1;
       lexer->cursor += 1;
     }
 
@@ -274,7 +272,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
       if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val.length += 1; // consume <dot>
+        token.value.length += 1; // consume <dot>
         token.err = "Expected a digit to follow";
 
         lexer->cursor += 1; // move cursor past <dot>
@@ -282,11 +280,11 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       }
 
       token.kind = JSON_TOKEN_DOUBLE;
-      token.val.length += 2; // consume <dot><digit>
+      token.value.length += 2; // consume <dot><digit>
       lexer->cursor += 2; // move cursor past <dot><digit>
 
       while(lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
-        token.val.length += 1;
+        token.value.length += 1;
         lexer->cursor += 1;
       }
     }
@@ -298,7 +296,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
       if ((lexer->cursor + 1) >= lexer->input->length) {
           token.kind = JSON_TOKEN_UNKNOWN;
-          token.val.length += 1; // consume (<e> | <E>)
+          token.value.length += 1; // consume (<e> | <E>)
           token.err = "Expected a '+', '-' or a digit to follow";
 
           lexer->cursor += 1; // move cursor past (<e> | <E>)
@@ -311,7 +309,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       int next_char_isminus = lexer->input->buf[lexer->cursor + 1] == '-';
 
       if (next_char_isdigit) {
-        token.val.length += 2; // consume <e><digit>
+        token.value.length += 2; // consume <e><digit>
         lexer->cursor += 2; // move cursor past <e><digit>
       }
       else if (next_char_isplus || next_char_isminus) {
@@ -324,20 +322,20 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         if ((lexer->cursor + 2) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 2])) {
 
           token.kind = JSON_TOKEN_UNKNOWN;
-          token.val.length += 2; // consume (<e> | <E>)(<plus> | <minus>)
+          token.value.length += 2; // consume (<e> | <E>)(<plus> | <minus>)
           token.err = "Expected a digit to follow";
 
           lexer->cursor += 2; // move cursor past (<e> | <E>)(<plus> | <minus>)
           return token;
         }
 
-        token.val.length += 3; // consume <e>(<plus> | <minus>)<digit>
+        token.value.length += 3; // consume <e>(<plus> | <minus>)<digit>
         lexer->cursor += 3; // move cursor past <e>(<plus> | <minus>)<digit>
       }
       else {
         /* assertm(false, "Invalid scientific notation number at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
         token.kind = JSON_TOKEN_UNKNOWN;
-        token.val.length += 1;
+        token.value.length += 1;
         token.err = "Expected a '+', '-' or a digit to follow";
 
         lexer->cursor += 1; // move cursor past (<e> | <E>)
@@ -345,7 +343,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       }
 
       while (lexer->cursor < lexer->input->length && isdigit(lexer->input->buf[lexer->cursor])) {
-        token.val.length += 1;
+        token.value.length += 1;
         lexer->cursor += 1;
       }
     }
@@ -356,7 +354,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   // string
   if (lexer->input->buf[lexer->cursor] == '"') {
     token.kind = JSON_TOKEN_STRING;
-    token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume OPENING <dbl_quote>
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume OPENING <dbl_quote>
     lexer->cursor += 1; // move cursor past OPENING <dbl_quote>
 
     while(true) {
@@ -368,14 +366,14 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
       }
 
       if (lexer->input->buf[lexer->cursor] == '"' && lexer->input->buf[lexer->cursor - 1] != '\\') {
-        token.val.length += 1; // consume CLOSING <dbl_quote>
+        token.value.length += 1; // consume CLOSING <dbl_quote>
         token.kind = JSON_TOKEN_STRING;
 
         lexer->cursor += 1; // move cursor past CLOSING <dbl_quote>
         return token;
       }
 
-      token.val.length += 1;
+      token.value.length += 1;
       lexer->cursor += 1;
     }
 
@@ -383,7 +381,7 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   }
 
   token.kind = JSON_TOKEN_UNKNOWN; // this is default but I'm hardcoding just in case I re-order the json_token_type_t enum again
-  token.val = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
+  token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1);
   token.err = "Unrecognised token";
 
   lexer->cursor += 1;
@@ -427,7 +425,7 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
 static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *const lexer, json_token_t tok, const char *const err_prefix)
 {
 
-  /* printf(">> kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
+  /* printf(">> kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.value)); */
   json_value_t jv = {0};
 
   assertm(err_prefix && strlen(err_prefix) > 0,
@@ -438,7 +436,7 @@ static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *co
   snprintf(err, sz, "%s at line %zu and col %zu",
            err_prefix,
            lexer->line + 1 /* line is 0 index */,
-           lexer->cursor - lexer->bol - tok.val.length + 1 /* +1 for managing 0 index */);
+           lexer->cursor - lexer->bol - tok.value.length + 1 /* +1 for managing 0 index */);
 
   jv.kind = JSON_VALUE_UNEXPECTED;
   jv.err = err;
@@ -453,26 +451,26 @@ static json_value_t json_parse_symbol(arena_t *const arena, json_lexer_t *const 
 
   assertm(tok.kind == JSON_TOKEN_SYMBOL, "Expected a symbol token but received %s", json_token_kind_to_cstr(tok.kind));
 
-  if (sv_eq_cstr(tok.val, "null")) {
+  if (sv_eq_cstr(tok.value, "null")) {
     jv.kind = JSON_VALUE_NULL;
     jv.null = NULL;
   }
-  else if (sv_eq_cstr(tok.val, "true")) {
+  else if (sv_eq_cstr(tok.value, "true")) {
     jv.kind = JSON_VALUE_BOOLEAN;
     jv.boolean = true;
   }
-  else if (sv_eq_cstr(tok.val, "false")) {
+  else if (sv_eq_cstr(tok.value, "false")) {
     jv.kind = JSON_VALUE_BOOLEAN;
     jv.boolean = false;
   }
   else {
     const char* err_prefix = "Invalid symbol";
-    size_t sz = strlen(err_prefix) + tok.val.length + 16; // 16 bytes are YOLO padding just in case
+    size_t sz = strlen(err_prefix) + tok.value.length + 16; // 16 bytes are YOLO padding just in case
     char *err = arena_calloc(arena, 1, sz);
 
     snprintf(err, sz, "%s '"SV_FMT"'",
              err_prefix,
-             sv_fmt_args(tok.val));
+             sv_fmt_args(tok.value));
 
     jv = json_build_unexpected(arena, lexer, tok, err);
   }
@@ -488,8 +486,8 @@ static json_value_t json_parse_number(arena_t *const arena, json_lexer_t *const 
   assertm(tok.kind == JSON_TOKEN_LONG || tok.kind == JSON_TOKEN_DOUBLE,
           "Expected a long or double token but received %s", json_token_kind_to_cstr(tok.kind));
 
-  char *str = arena_calloc(arena, 1, tok.val.length + 1);
-  memcpy(str, tok.val.buf, tok.val.length);
+  char *str = arena_calloc(arena, 1, tok.value.length + 1);
+  memcpy(str, tok.value.buf, tok.value.length);
 
   // TODO: ERROR HANDLING
   jv.number = strtod(str, NULL); // strtoll doesn't parse exponent form hence using only strtod which does
@@ -506,15 +504,15 @@ static json_value_t json_parse_string(arena_t *const arena, json_lexer_t *const 
 
   assertm(tok.kind == JSON_TOKEN_STRING, "Expected a string token but received %s", json_token_kind_to_cstr(tok.kind));
 
-  char *str = arena_calloc(arena, 1, tok.val.length);
+  char *str = arena_calloc(arena, 1, tok.value.length);
 
   /**
-   * tok.val.buf + 1 to remove leading dbq qt (")
-   * tok.val.length - 2 to remove trailing dbl qt (") and \0 from original tok.val contents
+   * tok.value.buf + 1 to remove leading dbq qt (")
+   * tok.value.length - 2 to remove trailing dbl qt (") and \0 from original tok.value contents
    * Also, we don't add a \0 at the end as we use arena_calloc and thus init whole string
    * with \0 before memcpy-ing
    **/
-  memcpy(str, tok.val.buf + 1, tok.val.length - 2);
+  memcpy(str, tok.value.buf + 1, tok.value.length - 2);
 
   jv.kind = JSON_VALUE_STRING;
   jv.string = str;
@@ -529,12 +527,12 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
   assertm(tok.kind == JSON_TOKEN_UNKNOWN, "Expected an unknown token but received %s", json_token_kind_to_cstr(tok.kind));
   assertm(tok.err, "Expected unknown token to carry an error but received %s (%p)", tok.err, (void *)tok.err);
 
-  size_t sz = strlen(tok.err) + tok.val.length + 16; // 16 bytes of padding just in case we run out of space
+  size_t sz = strlen(tok.err) + tok.value.length + 16; // 16 bytes of padding just in case we run out of space
   char *err = arena_calloc(arena, 1, sz);
 
   snprintf(err, sz, "%s '"SV_FMT"'",
            tok.err,
-           sv_fmt_args(tok.val));
+           sv_fmt_args(tok.value));
 
   return json_build_unexpected(arena, lexer, tok, err);
 }
@@ -628,7 +626,7 @@ static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const l
       default: {
         assertm(false,
                 "JSON PARSER: UNREACHABLE: While parsing array, cannot parse unknown token kind '"SV_FMT"'",
-                sv_fmt_args(tok.val));
+                sv_fmt_args(tok.value));
       } break;
       }
 
@@ -706,7 +704,7 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
   case JSON_TOKEN_END: return json_build_unexpected(arena, &lexer, tok, "Unexpected end of input");
 
   default: {
-    assertm(false, "JSON PARSER: UNREACHABLE: Cannot parse unknown token kind '"SV_FMT"'", sv_fmt_args(tok.val));
+    assertm(false, "JSON PARSER: UNREACHABLE: Cannot parse unknown token kind '"SV_FMT"'", sv_fmt_args(tok.value));
   } break;
   }
 
@@ -723,7 +721,7 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
     char *err = arena_calloc(arena, 1, sz);
 
     snprintf(err, sz, "Expected end of input but received '"SV_FMT"' (%s)",
-             sv_fmt_args(tok.val),
+             sv_fmt_args(tok.value),
              json_token_kind_to_cstr(tok.kind));
 
     return json_build_unexpected(arena, &lexer, tok, err);
