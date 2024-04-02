@@ -748,7 +748,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 #ifndef HT_CALLOC
 // the first arg override is to support passing an arena for an arena allocator based alloc fn
 // same for the last arg as that's needed by an arena allocator based realloc fn
-#define HT_CALLOC(arena, count, size) calloc((count), (size))
+#define HT_CALLOC(arena, count, size) ((void)((arena)), calloc((count), (size)))
 #endif // HT_CALLOC
 
 #ifndef HT_FREE
