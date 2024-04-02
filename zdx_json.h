@@ -560,13 +560,13 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
   return json_build_unexpected(arena, lexer, tok, err);
 }
 
-#ifndef JSON_DA_MIN_CAP
-#define JSON_DA_MIN_CAP 8
-#endif // JSON_DA_MIN_CAP
+#ifndef JSON_DA_MIN_CAPACITY
+#define JSON_DA_MIN_CAPACITY 8
+#endif // JSON_DA_MIN_CAPACITY
 
 #define json_da_push(arena, arr, item) {                                                           \
     while(((arr)->length + 1) > (arr)->capacity) {                                                 \
-      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAP;                   \
+      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAPACITY;              \
       (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length, new_sz * sizeof((item))); \
                                                                                                    \
       dbg("++ arr->items %p \t| arr->capacity %zu \t| arr->length %zu \t\n",                       \
