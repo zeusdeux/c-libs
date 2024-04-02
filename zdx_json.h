@@ -77,9 +77,9 @@ typedef struct json_value_object_t {
 typedef struct json_object_return_t json_object_return_t;
 
 json_value_t json_parse(arena_t *const arena, const char *const json_cstr);
-json_object_return_t json_object_set(json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value);
+json_object_return_t json_object_set(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value);
 json_object_return_t json_object_get(const json_value_object_t ht[const static 1], const char *const key_cstr);
-json_object_return_t json_object_remove(json_value_object_t ht[const static 1], const char *const key_cstr);
+json_object_return_t json_object_remove(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr);
 #endif // ZDX_JSON_H_
 
 #ifdef ZDX_JSON_IMPLEMENTATION
@@ -768,7 +768,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 #define HT_MIN_CAPACITY 64
 #endif // HT_MIN_CAPACITY
 
-#define ht_resize(ht)                                                                                         \
+#define ht_resize(arena, ht)                                             \
   do {                                                                                                        \
     float load_factor = (ht)->capacity ? (ht)->length / (float)(ht)->capacity : 0;                            \
     dbg("++ load factor %0.4f (min: %0.4f max: %0.4f)", load_factor, HT_MIN_LOAD_FACTOR, HT_MAX_LOAD_FACTOR); \
@@ -789,14 +789,14 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
       size_t new_sz = (ht)->capacity ? (size_t)((ht)->capacity * 0.5f) : HT_MIN_CAPACITY;                     \
       new_sz = new_sz < HT_MIN_CAPACITY ? HT_MIN_CAPACITY : new_sz;                                           \
       dbg("++ shrinking to %zu", new_sz);                                                                     \
-      (ht)->items = HT_CALLOC(NULL, new_sz, sizeof(*(ht)->items));                                            \
+      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));     \
       (ht)->capacity = new_sz;                                                                                \
     }                                                                                                         \
     /* grow */                                                                                                \
     else if (load_factor >= HT_MAX_LOAD_FACTOR) {                                                             \
       size_t new_sz = (ht)->capacity ? (ht)->capacity * 2 : HT_MIN_CAPACITY;                                  \
       dbg("++ growing to %zu", new_sz);                                                                       \
-      (ht)->items = HT_CALLOC(NULL, new_sz, sizeof(*(ht)->items));                                            \
+      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));     \
       (ht)->capacity = new_sz;                                                                                \
     }                                                                                                         \
     else {                                                                                                    \
@@ -828,10 +828,10 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
     (ht)->length = old_length;                                                                                \
   } while(0)
 
-json_object_return_t json_object_set(json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value)
+json_object_return_t json_object_set(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value)
 {
   ht_dbg(">>", ht);
-  ht_resize(ht);
+  ht_resize(arena, ht);
 
   size_t key_length = strlen(key_cstr);
   size_t idx = ht_get_index(ht, key_cstr, key_length);
@@ -871,10 +871,10 @@ json_object_return_t json_object_get(const json_value_object_t ht[const static 1
   };
 }
 
-json_object_return_t json_object_remove(json_value_object_t ht[const static 1], const char *const key_cstr)
+json_object_return_t json_object_remove(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr)
 {
   ht_dbg(">>", ht);
-  ht_resize(ht);
+  ht_resize(arena, ht);
 
   size_t key_length = strlen(key_cstr);
   size_t idx = ht_get_index(ht, key_cstr, key_length);
@@ -951,7 +951,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
           snprintf(err, 64, "Malformed object: No value for key '%s'", key);
           value = json_build_unexpected(arena, lexer, tok, err);
         }
-        json_object_set(jvs[jvs_length - 2].object, keys[jvs_length - 2], value);
+        json_object_set(arena, jvs[jvs_length - 2].object, keys[jvs_length - 2], value);
         key = NULL;
       }
 
@@ -976,7 +976,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
         if (!key) {
           return json_build_unexpected(arena, lexer, tok, "Unexpected '[' token while parsing an object");
         } else {
-          json_object_set(jvs[jvs_length - 1].object, key, json_parse_array(arena, lexer));
+          json_object_set(arena, jvs[jvs_length - 1].object, key, json_parse_array(arena, lexer));
           key = NULL;
         }
       } break;
@@ -985,7 +985,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
         if (!key) {
           return json_build_unexpected(arena, lexer, tok, "Unexpected symbol token while parsing an object");
         } else {
-          json_object_set(jvs[jvs_length - 1].object, key, json_parse_symbol(arena, lexer));
+          json_object_set(arena, jvs[jvs_length - 1].object, key, json_parse_symbol(arena, lexer));
           key = NULL;
         }
       } break;
@@ -994,7 +994,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
         if (!key) {
           return json_build_unexpected(arena, lexer, tok, "Unexpected long token while parsing an object");
         } else {
-          json_object_set(jvs[jvs_length - 1].object, key, json_parse_number(arena, lexer));
+          json_object_set(arena, jvs[jvs_length - 1].object, key, json_parse_number(arena, lexer));
           key = NULL;
         }
       } break;
@@ -1003,7 +1003,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
         if (!key) {
           return json_build_unexpected(arena, lexer, tok, "Unexpected double token while parsing an object");
         } else {
-          json_object_set(jvs[jvs_length - 1].object, key, json_parse_number(arena, lexer));
+          json_object_set(arena, jvs[jvs_length - 1].object, key, json_parse_number(arena, lexer));
           key = NULL;
         }
       } break;
@@ -1013,7 +1013,7 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
           json_value_t json_string = json_parse_string(arena, lexer);
           key = json_string.string.value;
         } else {
-          json_object_set(jvs[jvs_length - 1].object, key, json_parse_string(arena, lexer));
+          json_object_set(arena, jvs[jvs_length - 1].object, key, json_parse_string(arena, lexer));
           key = NULL;
         }
       } break;
