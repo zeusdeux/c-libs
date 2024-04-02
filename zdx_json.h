@@ -768,7 +768,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 #define HT_MIN_CAPACITY 64
 #endif // HT_MIN_CAPACITY
 
-#define ht_resize(arena, ht)                                             \
+#define ht_resize(arena, ht)                                                                                  \
   do {                                                                                                        \
     float load_factor = (ht)->capacity ? (ht)->length / (float)(ht)->capacity : 0;                            \
     dbg("++ load factor %0.4f (min: %0.4f max: %0.4f)", load_factor, HT_MIN_LOAD_FACTOR, HT_MAX_LOAD_FACTOR); \
@@ -779,7 +779,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
                                                                                                               \
     size_t moved = 0;                                                                                         \
                                                                                                               \
-    struct json_value_object_kv_t *old_items = (ht)->items;                                                                \
+    struct json_value_object_kv_t *old_items = (ht)->items;                                                   \
     size_t old_length = (ht)->length;                                                                         \
     size_t old_capacity = (ht)->capacity;                                                                     \
                                                                                                               \
@@ -789,14 +789,14 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
       size_t new_sz = (ht)->capacity ? (size_t)((ht)->capacity * 0.5f) : HT_MIN_CAPACITY;                     \
       new_sz = new_sz < HT_MIN_CAPACITY ? HT_MIN_CAPACITY : new_sz;                                           \
       dbg("++ shrinking to %zu", new_sz);                                                                     \
-      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));     \
+      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));                                         \
       (ht)->capacity = new_sz;                                                                                \
     }                                                                                                         \
     /* grow */                                                                                                \
     else if (load_factor >= HT_MAX_LOAD_FACTOR) {                                                             \
       size_t new_sz = (ht)->capacity ? (ht)->capacity * 2 : HT_MIN_CAPACITY;                                  \
       dbg("++ growing to %zu", new_sz);                                                                       \
-      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));     \
+      (ht)->items = HT_CALLOC((arena), new_sz, sizeof(*(ht)->items));                                         \
       (ht)->capacity = new_sz;                                                                                \
     }                                                                                                         \
     else {                                                                                                    \
@@ -807,7 +807,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
                                                                                                               \
     if (old_items != NULL) {                                                                                  \
       for (size_t i = 0; i < old_capacity; i++) {                                                             \
-        struct json_value_object_kv_t *item = &old_items[i];                                                               \
+        struct json_value_object_kv_t *item = &old_items[i];                                                  \
                                                                                                               \
         if (!item->occupied) {                                                                                \
           continue;                                                                                           \
