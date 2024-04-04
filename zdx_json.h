@@ -29,6 +29,15 @@
 #include <stdbool.h>
 #include "./zdx_simple_arena.h"
 
+/**
+ * TODO: ERROR HANDLING ALL OVER FFS (including arena->err, bounds checks, etc)
+ * TODO: Handle escape chars such as \u in strings
+ * TODO: Support paths in place of key_cstr - for e.g.,
+ *   json_object_get(obj, "a.b.0.c");
+ *   json_object_set(arena, obj, "a.b.0.c", (json_value_t){ .kind = JSON_VALUE_BOOLEAN, .boolean = true });
+ *   json_object_remove(arena, obj, "a.b.0.c");
+ */
+
 /* Types and function for JSON parsing */
 typedef enum {
   JSON_VALUE_UNEXPECTED = 0,
@@ -378,7 +387,9 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   if (lexer->input->buf[lexer->cursor] == '"') {
     token.kind = JSON_TOKEN_STRING;
     lexer->cursor += 1; // move cursor past OPENING <dbl_quote>
-    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 1); // consume first char _after_ OPENING <dbl_quote>
+    // don't consume anything as yet as the next char might be a " (aka dbl quote)
+    // denoting end of this string in which case, token.value.buf should be empty and token.value.length should be 0
+    token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 0);
 
     while(true) {
       // end of input before end of string so return JSON_TOKEN_UNKNOWN
@@ -421,8 +432,6 @@ static json_token_t json_lexer_peek_token(json_lexer_t *const lexer)
 
   json_token_t tok = json_lexer_next_token(lexer);
 
-  /* printf("<< kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.val)); */
-
   lexer->cursor = before.cursor;
   lexer->line = before.line;
   lexer->bol = before.bol;
@@ -448,7 +457,6 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
 
 static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *const lexer, json_token_t tok, const char *const err_prefix)
 {
-  /* printf(">> kind %s \t| val '"SV_FMT"'\n", json_token_kind_to_cstr(tok.kind), sv_fmt_args(tok.value)); */
   json_value_t jv = {0};
 
   assertm(err_prefix && strlen(err_prefix) > 0,
@@ -527,18 +535,17 @@ static json_value_t json_parse_string(arena_t *const arena, json_lexer_t *const 
 
   assertm(tok.kind == JSON_TOKEN_STRING, "Expected a string token but received %s", json_token_kind_to_cstr(tok.kind));
 
-  char *str = arena_calloc(arena, 1, tok.value.length);
+  char *str = arena_calloc(arena, 1, tok.value.length + 1); // + 1 for \0
 
   /**
-   * tok.value.length - 1 to remove \0 from original tok.value contents
-   * Also, we don't add a \0 at the end as we use arena_calloc and thus init whole string
-   * with \0 before memcpy-ing
+   * We don't add a \0 at the end as we use arena_calloc and
+   * thus init whole string + 1 with \0 before memcpy-ing
    **/
-  memcpy(str, tok.value.buf, tok.value.length - 1);
+  memcpy(str, tok.value.buf, tok.value.length);
 
   jv.kind = JSON_VALUE_STRING;
   jv.string.value = str;
-  jv.string.length = tok.value.length - 1;
+  jv.string.length = tok.value.length;
 
   return jv;
 }
@@ -564,22 +571,21 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
 #define JSON_DA_MIN_CAPACITY 8
 #endif // JSON_DA_MIN_CAPACITY
 
-#define json_da_push(arena, arr, item) {                                                           \
-    while(((arr)->length + 1) > (arr)->capacity) {                                                 \
-      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAPACITY;              \
-      (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length, new_sz * sizeof((item))); \
-                                                                                                   \
-      dbg("++ arr->items %p \t| arr->capacity %zu \t| arr->length %zu \t\n",                       \
-          (void *)(arr)->items, (arr)->capacity, (arr)->length);                                   \
-                                                                                                   \
-      if ((arena)->err) {                                                                          \
-        bail("Error: %s", (arena)->err);                                                           \
-      }                                                                                            \
-                                                                                                   \
-      (arr)->capacity = new_sz;                                                                    \
-    }                                                                                              \
-                                                                                                   \
-    (arr)->items[(arr)->length++] = (item);                                                        \
+#define json_da_push(arena, arr, item) {                                                                          \
+    while(((arr)->length + 1) > (arr)->capacity) {                                                                \
+      size_t new_sz = (arr)->capacity ? ((arr)->capacity * 2) : JSON_DA_MIN_CAPACITY;                             \
+      (arr)->items = arena_realloc((arena), (arr)->items, (arr)->length * sizeof(item), new_sz * sizeof((item))); \
+                                                                                                                  \
+      if ((arena)->err) {                                                                                         \
+        bail("Error: %s", (arena)->err);                                                                          \
+      }                                                                                                           \
+      (arr)->capacity = new_sz;                                                                                   \
+                                                                                                                  \
+      dbg("++ arr->items %p \t| arr->capacity %zu \t| arr->length %zu \t| sizeof(item) %zu\n",                    \
+          (void *)(arr)->items, (arr)->capacity, (arr)->length, sizeof((item)));                                  \
+    }                                                                                                             \
+                                                                                                                  \
+    (arr)->items[(arr)->length++] = (item);                                                                       \
   } while(0)
 
 #ifndef JSON_MAX_DEPTH
@@ -647,7 +653,8 @@ static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const l
       } break;
 
       case JSON_TOKEN_OCURLY: {
-        json_da_push(arena, &jvs[jvs_length - 1].array, json_parse_object(arena, lexer));
+        json_value_t value = json_parse_object(arena, lexer);
+        json_da_push(arena, &jvs[jvs_length - 1].array, value);
       } break;
 
       case JSON_TOKEN_UNKNOWN: {
@@ -727,7 +734,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
   while(ht_has_collision(&ht->items[idx], key, sz)) {
     idx += (k * k);
     idx = idx % ht->capacity;
-    k = (k << 2) % max_k;
+    k = (k + 2) % max_k; // k + 2 instead of k << 2 as for some keys, k << 2 would result in an infinite loop here
   }
 
   return idx;
@@ -735,15 +742,6 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 
 #define ht_dbg(label, ht) dbg("%s length %zu \t| capacity %zu \t| items %p", \
                               (label), (ht)->length, (ht)->capacity, (void *)(ht)->items)
-
-#define ht_items_dbg(label, ht) do {                                                                             \
-    for (size_t i = 0; i < (ht)->capacity; i++) {                                                                \
-      if (!(ht)->items[i].occupied) continue;                                                                    \
-      dbg("%s idx %zu \t| key %s \t| length %zu \t| occupied %s \t| value %p (a: %s, b: %d)",                    \
-          (label), i, (ht)->items[i].key, (ht)->items[i].key_length, (ht)->items[i].occupied ? "true" : "false", \
-          (void *)&(ht)->items[i].value, (ht)->items[i].value.a, (ht)->items[i].value.b);                        \
-    }                                                                                                            \
-  } while(0)
 
 #ifndef HT_CALLOC
 // the first arg override is to support passing an arena for an arena allocator based alloc fn
@@ -765,7 +763,7 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 #endif // HT_MAX_LOAD_FACTOR 0
 
 #ifndef HT_MIN_CAPACITY
-#define HT_MIN_CAPACITY 64
+#define HT_MIN_CAPACITY 32
 #endif // HT_MIN_CAPACITY
 
 #define ht_resize(arena, ht)                                                                                  \
@@ -841,6 +839,7 @@ json_object_return_t json_object_set(arena_t *const arena, json_value_object_t h
   if (!ht->items[idx].occupied) {
     ht->length++;
   }
+
 
   ht->items[idx].key = key_cstr;
   ht->items[idx].key_length = key_length;
@@ -1053,6 +1052,7 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
   json_lexer_t lexer = {
     .input = &input
   };
+
 
   // get token without changing lexer state
   // as it's on the json_parse_* functions to
