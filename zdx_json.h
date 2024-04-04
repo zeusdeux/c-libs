@@ -32,6 +32,7 @@
 /**
  * TODO: ERROR HANDLING ALL OVER FFS (including arena->err, bounds checks, etc)
  * TODO: Handle escape chars such as \u in strings
+ * TODO: Handle unicodes in string ffs to report length correctly for example
  * TODO: Support paths in place of key_cstr - for e.g.,
  *   json_object_get(obj, "a.b.0.c");
  *   json_object_set(arena, obj, "a.b.0.c", (json_value_t){ .kind = JSON_VALUE_BOOLEAN, .boolean = true });
