@@ -37,6 +37,7 @@
  *   json_object_get(obj, "a.b.0.c");
  *   json_object_set(arena, obj, "a.b.0.c", (json_value_t){ .kind = JSON_VALUE_BOOLEAN, .boolean = true });
  *   json_object_remove(arena, obj, "a.b.0.c");
+ * TODO: Fix the allocation weirdness with having both hardcoded arena_alloc and the HT_CALLOC macro for hashtables
  */
 
 /* Types and function for JSON parsing */
@@ -103,6 +104,7 @@ json_object_return_t json_object_remove(arena_t *const arena, json_value_object_
 #include "./zdx_util.h"
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "./zdx_string_view.h"
+#undef ZDX_STRING_VIEW_IMPLEMENTATION
 
 typedef enum {
   // err member will carry error string (static with no interpolation of row/col. That's the parser's job to build using the err str)
