@@ -41,6 +41,7 @@
  *   everywhere snprintf() is used which is gross
  * TODO: WRITE TESTS
  * TODO: Land on main
+ * TODO: Figure out how to communicate errors that occur due to out of memory in arena (ERROR HANDLE ALSO JFC)
  */
 
 /* Types and function for JSON parsing */
