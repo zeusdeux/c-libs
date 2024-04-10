@@ -629,6 +629,7 @@ static json_value_t json_parse_unknown(arena_t *const arena, json_lexer_t *const
 #define JSON_MAX_DEPTH  256
 #endif // JSON_MAX_DEPTH
 
+// forward declaration as json_parse_array() calls it
 static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const lexer);
 
 static json_value_t json_parse_array(arena_t *const arena, json_lexer_t *const lexer)
