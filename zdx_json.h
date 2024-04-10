@@ -34,9 +34,7 @@
  * TODO: Handle escape chars such as \u in strings
  * TODO: Handle unicodes in string ffs to report length correctly for example
  * TODO: Support paths in place of key_cstr - for e.g.,
- *   json_object_get(obj, "a.b.0.c");
- *   json_object_set(arena, obj, "a.b.0.c", (json_value_t){ .kind = JSON_VALUE_BOOLEAN, .boolean = true });
- *   json_object_remove(arena, obj, "a.b.0.c");
+ *   json_object_remove_deep(arena, obj, "a.b.0.c");
  * TODO: Fix the allocation weirdness with having both hardcoded arena_alloc and the HT_CALLOC macro for hashtables
  * TODO: come up with a better way of generating dynamic strings as the snprintf() hidden away in random functions
  *   is weird. Especially given that all snprintf() second param (aka bytes count to copy until) is hardcoded
