@@ -406,6 +406,7 @@ int main(void)
 
       arena_reset(&arena);
 
+
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
