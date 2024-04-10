@@ -38,6 +38,9 @@
  *   json_object_set(arena, obj, "a.b.0.c", (json_value_t){ .kind = JSON_VALUE_BOOLEAN, .boolean = true });
  *   json_object_remove(arena, obj, "a.b.0.c");
  * TODO: Fix the allocation weirdness with having both hardcoded arena_alloc and the HT_CALLOC macro for hashtables
+ * TODO: come up with a better way of generating dynamic strings as the snprintf() hidden away in random functions
+ *   is weird. Especially given that all snprintf() second param (aka bytes count to copy until) is hardcoded
+ *   everywhere snprintf() is used which is gross
  */
 
 /* Types and function for JSON parsing */
@@ -251,9 +254,8 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
   }
 
   // Instead of asserts we instead return JSON_TOKEN_UNKNOWN with captured unknown chars in string view so that
-  // parser can show useful errors. This assertm() stuff is only during development of the lib to debug logic quickly.
-  // We really want to return a value rather than abort as failing at lexing shouldn't fail the application that's
-  // using the lexer + parser.
+  // parser can show useful errors.
+
   // numbers
   int curr_char_isdigit = isdigit(lexer->input->buf[lexer->cursor]);
   int curr_char_isplus = lexer->input->buf[lexer->cursor] == '+';
@@ -276,12 +278,6 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         return token;
       }
 
-      /* assertm((lexer->cursor + 1) < lexer->input->length, */
-              /* "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
-      /* assertm(isdigit(lexer->input->buf[lexer->cursor + 1]), */
-              /* "Expected a digit at line %zu col %zu but received '%c'", */
-              /* lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
-
       token.kind = JSON_TOKEN_LONG;
       token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 2); // consume (<plus> | <minus>)<digit>
                                                                      //
@@ -299,12 +295,6 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
     // floating point component
     if (lexer->cursor < lexer->input->length && lexer->input->buf[lexer->cursor] == '.') {
-      /* assertm((lexer->cursor + 1) < lexer->input->length, */
-      /*         "Reached end when expected digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
-      /* assertm(isdigit(lexer->input->buf[lexer->cursor + 1]), */
-      /*         "Expected a digit at line %zu col %zu but received '%c'", */
-      /*         lexer->line, (lexer->cursor + 1) - lexer->bol, lexer->input->buf[lexer->cursor + 1]); */
-
       if ((lexer->cursor + 1) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 1])) {
         token.kind = JSON_TOKEN_UNKNOWN;
         token.value.length += 1; // consume <dot>
@@ -326,9 +316,6 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
 
     // exponent component
     if (lexer->cursor < lexer->input->length && (lexer->input->buf[lexer->cursor] == 'e' || lexer->input->buf[lexer->cursor] == 'E')) {
-      /* assertm((lexer->cursor + 1) < lexer->input->length, */
-      /*         "Reached end when expected '+', '-' or a digit at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
-
       if ((lexer->cursor + 1) >= lexer->input->length) {
           token.kind = JSON_TOKEN_UNKNOWN;
           token.value.length += 1; // consume (<e> | <E>)
@@ -348,12 +335,6 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         lexer->cursor += 2; // move cursor past <e><digit>
       }
       else if (next_char_isplus || next_char_isminus) {
-        /* assertm((lexer->cursor + 2) < lexer->input->length, */
-        /*         "Reached end when expected a digit at line %zu col %zu", lexer->line, (lexer->cursor + 2) - lexer->bol); */
-        /* assertm(isdigit(lexer->input->buf[lexer->cursor + 2]), */
-        /*         "Expected a digit at line %zu col %zu but received '%c'", */
-        /*         lexer->line, (lexer->cursor + 2) - lexer->bol, lexer->input->buf[lexer->cursor + 2]); */
-
         if ((lexer->cursor + 2) >= lexer->input->length || !isdigit(lexer->input->buf[lexer->cursor + 2])) {
 
           token.kind = JSON_TOKEN_UNKNOWN;
@@ -368,7 +349,6 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
         lexer->cursor += 3; // move cursor past <e>(<plus> | <minus>)<digit>
       }
       else {
-        /* assertm(false, "Invalid scientific notation number at line %zu col %zu", lexer->line, (lexer->cursor + 1) - lexer->bol); */
         token.kind = JSON_TOKEN_UNKNOWN;
         token.value.length += 1;
         token.err = "Expected a '+', '-' or a digit to follow";
@@ -694,8 +674,6 @@ static size_t hash_djb2(const char *key, size_t sz)
 
   for (size_t i = 0; i < sz; i++) {
     hash = hash * k ^ (size_t)key[i];
-    /* hash += sz << 10; */
-    /* hash ^= (hash * 33) >> 6; */
   }
 
   return hash;
