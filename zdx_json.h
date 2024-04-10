@@ -801,6 +801,10 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
 #define ht_resize(arena, ht)                                                                                  \
   do {                                                                                                        \
     float load_factor = (ht)->capacity ? (ht)->length / (float)(ht)->capacity : 0;                            \
+    /* if items aren't initialized, resize to base size */                                                    \
+    if ((ht)->items == NULL) {                                                                                \
+      load_factor = 0;                                                                                        \
+    }                                                                                                         \
     dbg("++ load factor %0.4f (min: %0.4f max: %0.4f)", load_factor, HT_MIN_LOAD_FACTOR, HT_MAX_LOAD_FACTOR); \
                                                                                                               \
     if (HT_MIN_LOAD_FACTOR < load_factor && load_factor < HT_MAX_LOAD_FACTOR) {                               \
@@ -830,12 +834,13 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
       (ht)->capacity = new_sz;                                                                                \
     }                                                                                                         \
     else {                                                                                                    \
-      assertm(false, "UNREACHABLE: load factor %0.4f", load_factor);                                          \
+      assertm(false, "JSON OBJECT HASHTABLE: UNREACHABLE: load factor %0.4f", load_factor);                   \
     }                                                                                                         \
                                                                                                               \
     assertm((ht)->items != NULL, "Expected items to be a valid ptr but received %p", (void *)(ht)->items);    \
+    assertm((ht)->capacity > 0, "Expected capacity to be > 0, Received: %zu", (ht)->capacity);                \
                                                                                                               \
-    if (old_items != NULL) {                                                                                  \
+    if (old_items != (ht)->items && old_items) {                                                              \
       for (size_t i = 0; i < old_capacity; i++) {                                                             \
         struct json_value_object_kv_t *item = &old_items[i];                                                  \
                                                                                                               \
