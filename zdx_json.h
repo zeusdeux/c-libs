@@ -41,6 +41,8 @@
  * TODO: come up with a better way of generating dynamic strings as the snprintf() hidden away in random functions
  *   is weird. Especially given that all snprintf() second param (aka bytes count to copy until) is hardcoded
  *   everywhere snprintf() is used which is gross
+ * TODO: WRITE TESTS
+ * TODO: Land on main
  */
 
 /* Types and function for JSON parsing */
