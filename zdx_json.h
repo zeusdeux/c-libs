@@ -52,6 +52,7 @@ typedef enum {
   JSON_VALUE_STRING,
   JSON_VALUE_ARRAY,
   JSON_VALUE_OBJECT,
+  JSON_VALUE_KINDS_COUNT // this should always be last
 } json_value_kind_t;
 
 typedef struct json_value_object_t json_value_object_t;
@@ -435,7 +436,57 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
     "JSON_VALUE_OBJECT",
   };
 
+  assertm(zdx_arr_len(value_kinds) == JSON_VALUE_KINDS_COUNT,
+          "Non-exhaustive use of enum: All json value kinds not handled");
   return value_kinds[kind];
+}
+
+// TODO: should this return void? or perhaps bool? keeping as void for
+// now as return value of snprintf() is weird af.
+// snprintf() and vsnprintf() return the number of characters that
+// would have been printed if the size were unlimited (again, not
+// including the final ‘\0’)
+static void json_value_by_kind_as_cstr(json_value_t json, char *out_cstr, const size_t max_out_cstr_sz)
+{
+  switch (json.kind) {
+  case JSON_VALUE_UNEXPECTED: {
+    snprintf(out_cstr, max_out_cstr_sz, "Unexpected value (err: %s)",
+             json.err);
+  } break;
+  case JSON_VALUE_NULL: {
+    snprintf(out_cstr, max_out_cstr_sz, "null (err: %s)",
+             json.err);
+  } break;
+  case JSON_VALUE_NUMBER: {
+    snprintf(out_cstr, max_out_cstr_sz, "%lf (err: %s)",
+             json.number, json.err);
+  } break;
+  case JSON_VALUE_BOOLEAN: {
+    snprintf(out_cstr, max_out_cstr_sz, "%s (err: %s)",
+             json.boolean ? "true" : "false",
+             json.err);
+  } break;
+  case JSON_VALUE_STRING: {
+    snprintf(out_cstr, max_out_cstr_sz, "%s (err: %s)",
+             json.string.value,
+             json.err);
+  } break;
+  case JSON_VALUE_ARRAY: {
+    snprintf(out_cstr, max_out_cstr_sz, "array [addr %p length %zu cap %zu err: %s]",
+             (void *)json.array.items, json.array.length, json.array.capacity,
+             json.err);
+  } break;
+  case JSON_VALUE_OBJECT: {
+    snprintf(out_cstr, max_out_cstr_sz, "object [addr %p length %zu cap %zu err: %s]",
+             (void *)json.object, json.object->length, json.object->capacity,
+             json.err);
+  } break;
+  default: {
+    snprintf(out_cstr, max_out_cstr_sz, "Unrecognized json value (err: %s)",
+             json.err);
+  } break;
+  }
+  out_cstr[max_out_cstr_sz] = 0;
 }
 
 static json_value_t json_build_unexpected(arena_t *const arena, json_lexer_t *const lexer, json_token_t tok, const char *const err_prefix)
