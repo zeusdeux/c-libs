@@ -95,6 +95,9 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr);
 json_object_return_t json_object_set(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value);
 json_object_return_t json_object_get(const json_value_object_t ht[const static 1], const char *const key_cstr);
 json_object_return_t json_object_remove(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr);
+json_object_return_t json_object_get_deep(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_path_cstr);
+json_object_return_t json_object_set_deep(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_path_cstr, json_value_t value);
+
 #endif // ZDX_JSON_H_
 
 #ifdef ZDX_JSON_IMPLEMENTATION
@@ -863,23 +866,27 @@ static size_t ht_get_index(const json_value_object_t ht[const static 1], const c
     (ht)->length = old_length;                                                                                \
   } while(0)
 
-json_object_return_t json_object_set(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr, const json_value_t value)
+/* -------------- HASHTABLE USED IN JSON OBJECTS -------------- */
+#define json_object_set(arena, ht, key, value) json_object_set_((arena), (ht), (key), strlen((key)), (value))
+json_object_return_t json_object_set_(arena_t *const arena,
+                                      json_value_object_t ht[const static 1],
+                                      const char *const key,
+                                      const size_t key_sz,
+                                      const json_value_t value)
 {
   ht_dbg(">>", ht);
   ht_resize(arena, ht);
 
-  size_t key_length = strlen(key_cstr);
-  size_t idx = ht_get_index(ht, key_cstr, key_length);
+  size_t idx = ht_get_index(ht, key, key_sz);
 
-  dbg("~~ idx %zu \t| key %s \t| key length %zu", idx, key_cstr, key_length);
+  dbg("~~ idx %zu \t| key %.*s \t| key length %zu", idx, (int)key_sz, key, key_sz);
 
   if (!ht->items[idx].occupied) {
     ht->length++;
   }
 
-
-  ht->items[idx].key = key_cstr;
-  ht->items[idx].key_length = key_length;
+  ht->items[idx].key = key;
+  ht->items[idx].key_length = key_sz;
   ht->items[idx].occupied = true;
   ht->items[idx].value = value;
 
@@ -889,11 +896,18 @@ json_object_return_t json_object_set(arena_t *const arena, json_value_object_t h
   };
 }
 
-json_object_return_t json_object_get(const json_value_object_t ht[const static 1], const char *const key_cstr)
+#define json_object_get(ht, key_cstr) json_object_get_((ht), (key_cstr), strlen((key_cstr)))
+static json_object_return_t json_object_get_(const json_value_object_t ht[const static 1], const char *const key, const size_t key_sz)
 {
   ht_dbg(">>", ht);
-  size_t key_length = strlen(key_cstr);
-  size_t idx = ht_get_index(ht, key_cstr, key_length);
+
+  if (!ht->items) {
+    return (json_object_return_t) {
+      .err = "Key not found (empty object)"
+    };
+  }
+
+  size_t idx = ht_get_index(ht, key, key_sz);
 
   if (!ht->items[idx].occupied) {
     return (json_object_return_t) {
@@ -907,16 +921,15 @@ json_object_return_t json_object_get(const json_value_object_t ht[const static 1
   };
 }
 
-json_object_return_t json_object_remove(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_cstr)
+#define json_object_remove(ht, key_cstr) json_object_remove_(ht, key_cstr, strlen((key_cstr)))
+static inline json_object_return_t json_object_remove_(json_value_object_t ht[const static 1], const char *const key, const size_t key_sz)
 {
   ht_dbg(">>", ht);
-  ht_resize(arena, ht);
 
-  size_t key_length = strlen(key_cstr);
-  size_t idx = ht_get_index(ht, key_cstr, key_length);
+  size_t idx = ht_get_index(ht, key, key_sz);
   json_object_return_t ret = {0};
 
-  dbg("~~ idx %zu \t| key %s \t| occupied %s", idx, key_cstr, ht->items[idx].occupied ? "true" : "false");
+  dbg("~~ idx %zu \t| key %s \t| occupied %s", idx, key, ht->items[idx].occupied ? "true" : "false");
 
   if (ht->items[idx].occupied) {
     ret.value = ht->items[idx].value;
@@ -927,6 +940,146 @@ json_object_return_t json_object_remove(arena_t *const arena, json_value_object_
 
   ht_dbg("<<", ht);
   return ret;
+}
+
+json_object_return_t json_object_get_deep(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_path_cstr)
+{
+  ht_dbg(">>", ht);
+  json_object_return_t result = {0};
+  json_value_t json = {0};
+  json.object = ht;
+
+  sv_t key_path_sv = sv_from_cstr(key_path_cstr);
+  sv_t key_sv = sv_split_by_char(&key_path_sv, '.');
+
+  while(key_sv.buf) {
+    result = json_object_get_(json.object, key_sv.buf, key_sv.length);
+
+    if (result.err) {
+      break;
+    }
+
+    // key_path_sv is updated to remaining string on each call to sv_split_by_char
+    // the key_path_sv.length check let's us know if we have another key coming up
+    // as checking if the value is an object should only happen until last key - 1
+    // as the last key in the path can refer to any type of json value
+    if (key_path_sv.length && result.value.kind != JSON_VALUE_OBJECT) {
+      char *val_cstr = arena_calloc(arena, 128, sizeof(*val_cstr));
+      json_value_by_kind_as_cstr(result.value, val_cstr, 128);
+
+      sv_t next_key_sv = sv_split_by_char(&key_path_sv, '.');
+
+      char *err = arena_calloc(arena, 256, sizeof(*err));
+      snprintf(err, 256, "Failed to lookup key '"SV_FMT"' at key '"SV_FMT"' Expected: object, Received: %s",
+               sv_fmt_args(next_key_sv), sv_fmt_args(key_sv), val_cstr);
+      err[256] = 0;
+      result.err = err;
+      result.value = json;
+      break;
+    }
+
+    json.object = result.value.object;
+    key_sv = sv_split_by_char(&key_path_sv, '.');
+  }
+
+  dbg("<< value %s \t| err %s", json_value_by_kind_as_cstr(result.value), result.err);
+  return result;
+}
+
+/* json_object_return_t json_object_remove_deep(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_path_cstr) */
+/* { */
+/*   ht_dbg(">>", ht); */
+/*   json_object_return_t result = {0}; */
+/*   json_value_t json = {0}; */
+
+/*   json.object = ht; */
+
+/*   sv_t key_path_sv = sv_from_cstr(key_path_cstr); */
+/*   sv_t key_sv = sv_split_by_char(&key_path_sv, '.'); */
+
+/*   while(key_sv.buf) { */
+/*     result = json_object_get_(json.object, key_sv.buf, key_sv.length); */
+
+/*     if (result.err){} */
+/*   } */
+
+
+/*   dbg("<< value %s \t| err %s", json_value_by_kind_as_cstr(result.value), result.err); */
+/*   return result; */
+/* } */
+
+
+// TODO: This is stupid slow. Fix it and ship a MUCH faster version!
+// But this will always remain slower than json_object_set so make sure to
+// document that in usage.
+json_object_return_t json_object_set_deep(arena_t *const arena, json_value_object_t ht[const static 1], const char *const key_path_cstr, json_value_t value)
+{
+  ht_dbg(">>", ht);
+
+  sv_t key_path_sv = sv_from_cstr(key_path_cstr);
+  sv_t key_sv = sv_split_by_char(&key_path_sv, '.');
+  sv_t last_key_sv = {0};
+  json_value_object_t *parent = ht;
+
+  while(key_sv.buf) {
+    sv_t next_key_sv = sv_split_by_char(&key_path_sv, '.');
+    dbg(">>> key_sv "SV_FMT" (len %zu)\n", sv_fmt_args(key_sv), key_sv.length);
+    dbg(">>> next_key_sv "SV_FMT" (len %zu)\n", sv_fmt_args(next_key_sv), next_key_sv.length);
+
+    if (next_key_sv.buf) {
+      json_object_return_t ret_obj = json_object_get_(parent, key_sv.buf, key_sv.length);
+
+      if (ret_obj.err) {
+        json_value_object_t *obj = arena_calloc(arena, 1, sizeof(*obj));
+        ret_obj = json_object_set_(arena, parent,
+                                  key_sv.buf, key_sv.length,
+                                  (json_value_t){ .kind = JSON_VALUE_OBJECT, .object = obj });
+      }
+
+      if (ret_obj.value.kind != JSON_VALUE_OBJECT) {
+        char *err = arena_calloc(arena, 128, sizeof(*err));
+        snprintf(err, 128, "Cannot set key '"SV_FMT"' on key '"SV_FMT"' of type %s as it is not an object",
+                 sv_fmt_args(next_key_sv), sv_fmt_args(key_sv), json_value_kind_to_cstr(ret_obj.value.kind));
+        return (json_object_return_t){ .err = err };
+      }
+
+      parent = ret_obj.value.object;
+    }
+
+    last_key_sv = key_sv;
+    key_sv = next_key_sv;
+  }
+
+  if (!parent->capacity || !parent->items) {
+    ht_resize(arena, parent);
+  }
+
+  size_t idx = ht_get_index(parent, last_key_sv.buf, last_key_sv.length);
+
+  dbg("~~ idx %zu \t| key %s \t| key length %zu \t| value (kind %s)",
+         idx, last_key_sv.buf, last_key_sv.length, json_value_kind_to_cstr(value.kind));
+
+  if (!parent->items[idx].occupied) {
+    parent->length++;
+  }
+
+  char *key = arena_calloc(arena,last_key_sv.length + 1, sizeof(*key));
+  memcpy(key, last_key_sv.buf, last_key_sv.length);
+  key[last_key_sv.length] = 0;
+  parent->items[idx].key = key;
+  parent->items[idx].key_length = last_key_sv.length;
+  parent->items[idx].occupied = true;
+
+  if (value.kind == JSON_VALUE_OBJECT && !value.object) {
+    value.object = arena_calloc(arena, 1, sizeof(*value.object));
+    ht_resize(arena, value.object);
+  }
+  parent->items[idx].value = value;
+
+  ht_dbg("<<", parent);
+  return (json_object_return_t) {
+    .value = value
+  };
 }
 
 static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const lexer)
@@ -971,8 +1124,14 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
       if (jvs_length == 1) {
         if (key) {
           char *err = arena_calloc(arena, 128, 1);
-          assertm(!arena->err, "Arena error: %s", arena->err);
-          snprintf(err, 64, "Malformed object: No value for key '%s'", key);
+
+          if (arena->err) {
+            snprintf(err, 128, "Could not allocate memory for a new object due to %s", arena->err);
+            err[128] = 0; // hard truncate error string at 128 chars
+            return json_build_unexpected(arena, lexer, tok, "Could not allocated memory for a new object");
+          }
+          snprintf(err, 128, "Malformed object: No value for key '%s'", key);
+          err[128] = 0; // hard truncate error string at 128 chars
           return json_build_unexpected(arena, lexer, tok, err);
         }
         return jvs[0];
@@ -983,8 +1142,13 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
         json_value_t value = jvs[jvs_length - 1];
         if (key) {
           char *err = arena_calloc(arena, 128, 1);
-          assertm(!arena->err, "Arena error: %s", arena->err);
-          snprintf(err, 64, "Malformed object: No value for key '%s'", key);
+          if (arena->err) {
+            snprintf(err, 128, "Could not allocate memory for a new object due to %s", arena->err);
+            err[128] = 0; // hard truncate error string at 128 chars
+            return json_build_unexpected(arena, lexer, tok, "Could not allocated memory for a new object");
+          }
+          snprintf(err, 128, "Malformed object: No value for key '%s'", key);
+          err[128] = 0; // hard truncate error string at 128 chars
           value = json_build_unexpected(arena, lexer, tok, err);
         }
         json_object_set(arena, jvs[jvs_length - 2].object, keys[jvs_length - 2], value);
@@ -1064,7 +1228,6 @@ static json_value_t json_parse_object(arena_t *const arena, json_lexer_t *const 
                 sv_fmt_args(tok.value));
       } break;
       }
-
     }
 
     tok = json_lexer_peek_token(lexer);
