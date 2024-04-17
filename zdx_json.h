@@ -440,7 +440,7 @@ static const char *json_value_kind_to_cstr(json_value_kind_t kind)
     "JSON_VALUE_OBJECT",
   };
 
-  assertm(zdx_arr_len(value_kinds) == JSON_VALUE_KINDS_COUNT,
+  _Static_assert(zdx_arr_len(value_kinds) == JSON_VALUE_KINDS_COUNT,
           "Non-exhaustive use of enum: All json value kinds not handled");
   return value_kinds[kind];
 }
@@ -1254,7 +1254,6 @@ json_value_t json_parse(arena_t *const arena, const char *const json_cstr)
   json_lexer_t lexer = {
     .input = &input
   };
-
 
   // get token without changing lexer state
   // as it's on the json_parse_* functions to
