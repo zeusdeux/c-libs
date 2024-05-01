@@ -45,11 +45,11 @@
 #endif // GB_ASSERT
 
 #ifndef GB_INIT_LENGTH
-#define GB_INIT_LENGTH 1024 /* sizeof(char) * 1024 */
+#define GB_INIT_LENGTH sizeof(char) * 1024
 #endif // GB_INIT_LENGTH
 
 #ifndef GB_MIN_GAP_SIZE
-#define GB_MIN_GAP_SIZE 16 /* sizeof(char) * 16 */
+#define GB_MIN_GAP_SIZE sizeof(char) * 16
 #endif // GB_MIN_GAP_SIZE
 
 typedef struct gap_buffer {
@@ -63,12 +63,12 @@ void gb_init(gb_t gb[const static 1]);
 void gb_deinit(gb_t gb[const static 1]);
 void gb_move_cursor(gb_t gb[const static 1], const int64_t pos); /* pos +ve -> move right, pos -ve -> move left */
 void gb_insert_char(gb_t gb[const static 1], const char c);
-void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1]);
-void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t length);
+void gb_insert_cstr(gb_t gb[const static 1], const char cstr[const static 1]);
+void gb_insert_buf(gb_t gb[const static 1], void *const buf, size_t length);
 void gb_delete_chars(gb_t gb[const static 1], const int64_t count); /* count +ve -> delete, count -ve -> backspace */
 size_t gb_get_cursor(gb_t gb[const static 1]);
-char *gb_buf_as_cstr(const gb_t gb[const static 1]);
-char *gb_copy_chars_as_cstr(gb_t gb[const static 1], int64_t count); /* count +ve -> copy from cursor right, count -ve -> copy from cursor left*/
+void gb_as_cstr(const gb_t gb[const static 1], char dst_cstr[const static 1]); /* TODO: Perhaps return the number of bytes copied into dst_cstr */
+size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static 1], int64_t count); /* count +ve -> copy from cursor right, count -ve -> copy from cursor left*/
 
 #endif // ZDX_GAP_BUFFER_
 
@@ -76,52 +76,50 @@ char *gb_copy_chars_as_cstr(gb_t gb[const static 1], int64_t count); /* count +v
 
 #include <string.h>
 
-/* Guarded dbg trace code as it allocates */
 #ifdef ZDX_TRACE_ENABLE
-#define gb_dbg(label, gb)                                               \
-  do {                                                                  \
-    const char *buf_as_cstr = gb_buf_as_dbg_cstr(gb);                   \
-    dbg("%s buf %s \t| length %zu \t| gap start %zu \t| gap end %zu",   \
-        label, buf_as_cstr, gb->length, gb->gap_start_, gb->gap_end_);  \
-    GB_FREE((void *)buf_as_cstr);                                       \
+#define gb_dbg(label, gb) do {                                         \
+    /*
+     * this might not be enough mem and cause seg faults and
+     * other weirdness when used with large gap buffer.
+     * Careful Icarus
+     */                                                                \
+    char buf_as_cstr[512] = {0};                                       \
+    gb_as_dbg_cstr(gb, buf_as_cstr);                                   \
+    dbg("%s buf %s \t| length %zu \t| gap start %zu \t| gap end %zu",  \
+        label, buf_as_cstr, gb->length, gb->gap_start_, gb->gap_end_); \
   } while(0)
 #else
 #define gb_dbg(label, gb) {}
 #endif // ZDX_TRACE_ENABLE
 
-#define gb_assert_validity(gb)                                                                                                                   \
-  do {                                                                                                                                           \
-    GB_ASSERT((gb) != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", ((void *)(gb)));                                      \
-    GB_ASSERT(((int64_t)gb_gap_len(gb)) >= 0, "[zdx str] Expected: gap length to be 0 or greater, Received: %lld", ((int64_t) gb_gap_len(gb)));  \
-    GB_ASSERT(((int64_t)(gb)->length) >=0, "[zdx str] Expected: length is non-negative, Received: %lld", ((int64_t)(gb)->length));               \
+#define gb_assert_validity(gb) do {                                                                                                             \
+    GB_ASSERT((gb) != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", ((void *)(gb)));                                     \
+    GB_ASSERT(((int64_t)gb_gap_len(gb)) >= 0, "[zdx str] Expected: gap length to be 0 or greater, Received: %lld", ((int64_t) gb_gap_len(gb))); \
+    GB_ASSERT(((int64_t)(gb)->length) >=0, "[zdx str] Expected: length is non-negative, Received: %lld", ((int64_t)(gb)->length));              \
   } while(0)
 
 #define gb_gap_len(gb) ((gb)->gap_end_ - (gb)->gap_start_)
 #define gb_buf_len_with_gap(gb) ((gb)->length + gb_gap_len(gb))
 
-static char *gb_buf_as_dbg_cstr(const gb_t gb[const static 1])
+/* TODO: Perhaps return the number of bytes copied into dst_cstr */
+static void gb_as_dbg_cstr(const gb_t gb[const static 1], char dst_cstr[const static 1])
 {
   gb_assert_validity(gb);
 
   size_t buf_len_with_gap = gb_buf_len_with_gap(gb);
-  char *str = GB_REALLOC(NULL, (buf_len_with_gap + 1) * sizeof(char));
-  GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
 
   for (size_t i = 0; i < buf_len_with_gap; i++) {
     if (i >= gb->gap_start_ && i < gb->gap_end_) {
-      str[i] = '.';
+      dst_cstr[i] = '.';
     } else {
-      str[i] = gb->buf[i];
+      dst_cstr[i] = gb->buf[i];
     }
   }
-  str[buf_len_with_gap] = '\0';
-
-  return str;
+  dst_cstr[buf_len_with_gap] = '\0';
 }
 
 static void gb_resize_gap_(gb_t gb[const static 1], size_t new_gap_len)
 {
-
   gb_dbg(">>", gb);
 
   gb_assert_validity(gb);
@@ -175,26 +173,23 @@ static void gb_resize_gap_(gb_t gb[const static 1], size_t new_gap_len)
   return;
 }
 
-char *gb_buf_as_cstr(const gb_t gb[const static 1])
+/* allocated size for dst should be large enough to hold the contents of the gap buffer */
+void gb_as_cstr(const gb_t gb[const static 1], char dst_cstr[const static 1])
 {
   gb_dbg(">>", gb);
   gb_assert_validity(gb);
-
-  char *str = GB_REALLOC(NULL, (gb->length + 1) * sizeof(char));
-  GB_ASSERT(str != NULL, "[zdx str] Allocation failed for buf as cstring");
 
   size_t buf_len_with_gap = gb_buf_len_with_gap(gb);
 
   for (size_t i = 0, j = 0; i < buf_len_with_gap; i++) {
     if (i < gb->gap_start_ || i >= gb->gap_end_) {
-      str[j++] = gb->buf[i];
+      dst_cstr[j++] = gb->buf[i];
     }
   }
 
-  str[gb->length] = '\0';
+  dst_cstr[gb->length] = '\0';
 
   gb_dbg("<<", gb);
-  return str;
 }
 
 
@@ -316,7 +311,7 @@ void gb_insert_char(gb_t gb[const static 1], const char c)
 /*
  * Non c-string input will lead to undefined behavior for this function
  */
-void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
+void gb_insert_cstr(gb_t gb[const static 1], const char cstr[const static 1])
 {
   const size_t cstr_len = strlen(cstr);
 
@@ -347,7 +342,7 @@ void gb_insert_cstr(gb_t gb[const static 1], const char cstr[static 1])
   return;
 }
 
-void gb_insert_buf(gb_t gb[const static 1], void *buf, size_t len)
+void gb_insert_buf(gb_t gb[const static 1], void *const buf, size_t len)
 {
   gb_dbg(">>", gb);
   dbg(">> buf %p \t| length %zu", buf, len);
@@ -413,13 +408,11 @@ size_t gb_get_cursor(gb_t gb[const static 1])
 
 /* count +ve -> copy count chars from cursor to [cursor + count] */
 /* count -ve -> copy count chars from [cursor - count] to cursor */
-char *gb_copy_chars_as_cstr(gb_t gb[const static 1], const int64_t count)
+size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static 1], const int64_t count)
 {
   gb_dbg(">>", gb);
   dbg(">> count %lld", count);
   gb_assert_validity(gb);
-
-  char *empty = NULL;
 
   if (count != 0) {
     const size_t curr_cursor = gb_get_cursor(gb);
@@ -428,50 +421,48 @@ char *gb_copy_chars_as_cstr(gb_t gb[const static 1], const int64_t count)
       /* trying to copy count chars backwards when cursor is at beginning of buf */
       if (curr_cursor <= 0) {
         gb_dbg("<<", gb);
-        dbg("<< returning %s", empty);
+        dbg("<< returning 0 - cannot copy chars backwards when cursor is at beginning of gap buffer");
 
-        return empty;
+        return 0;
       }
 
       size_t bounded_count = ((int64_t)curr_cursor + count) < 0 ? curr_cursor : llabs(count);
       dbg("!! copy left \t| chars copy count %zu", bounded_count);
 
-      char *str = GB_REALLOC(NULL, (bounded_count + 1) * sizeof(char));
       const void *src = gb->buf + (curr_cursor - bounded_count);
-      memcpy(str, src, bounded_count);
+      memcpy(dst_cstr, src, bounded_count);
 
-      str[bounded_count] = '\0';
+      dst_cstr[bounded_count] = '\0';
 
       gb_dbg("<<", gb);
-      dbg("<< returning %s", str);
-      return str;
+      dbg("<< wrote %s", dst_cstr);
+      return bounded_count;
     } else {
       /* trying to copy count chars forwards when cursor is at end of buf */
       if (curr_cursor >= gb->length) {
         gb_dbg("<<", gb);
-        dbg("<< returning %s", empty);
+        dbg("<< returning 0 - cannot copy chars forwards when cursor is at end of gap buffer");
 
-        return empty;
+        return 0;
       }
 
       size_t bounded_count = ((size_t)count) > (gb->length - curr_cursor) ? (gb->length - curr_cursor) : llabs(count);
       dbg("!! copy right \t| chars copy count %zu", bounded_count);
 
-      char *str = GB_REALLOC(NULL, (bounded_count + 1) * sizeof(char));
       const void *src = gb->buf + gb->gap_end_;
-      memcpy(str, src, bounded_count);
+      memcpy(dst_cstr, src, bounded_count);
 
-      str[bounded_count] = '\0';
+      dst_cstr[bounded_count] = '\0';
 
       gb_dbg("<<", gb);
-      dbg("<< returning %s", str);
-      return str;
+      dbg("<< wrote %s", dst_cstr);
+      return bounded_count;
     }
   }
 
   gb_dbg("<<", gb);
-  dbg("<< returning %s", empty);
-  return empty;
+  dbg("<< returning 0 - no chars to copy as count is 0");
+  return 0;
 }
 
 #endif // ZDX_GAP_BUFFER_IMPLEMENTATION
