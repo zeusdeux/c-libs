@@ -26,8 +26,8 @@
 #ifndef ZDX_UTIL_H_
 #define ZDX_UTIL_H_
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdio.h> /* needed for fprintf, etc */
+#include <stdlib.h> /* needed for abort(), exit(), etc */
 
 #define zdx_min(a, b) ((a) < (b) ? (a) : (b))
 #define zdx_max(a, b) ((a) > (b) ? (a) : (b))
@@ -55,24 +55,24 @@
   } while(0);
 
 #if defined(ZDX_TRACE_ENABLE)
-#define dbg(...) do {                                                   \
-    fprintf (stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__);    \
-    fprintf (stderr, __VA_ARGS__);                                      \
-    fprintf (stderr, "\n");                                             \
+#define dbg(...) do {                                               \
+    fprintf(stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__); \
+    fprintf(stderr, __VA_ARGS__);                                   \
+    fprintf(stderr, "\n");                                          \
   } while(0);
 #else
-#define dbg(...) {}
+#define dbg(...)
 #endif // ZDX_TRACE_ENABLE
 
-#ifdef ZDX_LOG_DISABLE
-#define log(level, ...) {}
-#else
 typedef enum {
   L_ERROR = 1,
   L_WARN,
   L_INFO
 } ZDX_LOG_LEVEL;
 
+#ifdef ZDX_LOG_DISABLE
+#define log(level, ...)
+#else
 static const char *ZDX_LOG_LEVEL_STR[] = {
   "",
   "ERROR",
@@ -80,11 +80,12 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
   "INFO"
 };
 
-#define log(level, ...) do {                                    \
-    fprintf (stderr, "%s:%d: ", __FILE__, __LINE__);            \
-    fprintf (stderr, "[%s] ", ZDX_LOG_LEVEL_STR[level]);        \
-    fprintf (stderr, __VA_ARGS__);                              \
-    fprintf (stderr, "\n");                                     \
+#define log(level, ...) do {                              \
+    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);       \
+    fprintf(stderr, "[%s] ", ZDX_LOG_LEVEL_STR[(level)]); \
+    fprintf(stderr, __VA_ARGS__);                         \
+    fprintf(stderr, "\n");                                \
   } while(0);
 #endif // ZDX_LOG_DISABLE
+
 #endif // ZDX_UTIL_H_
