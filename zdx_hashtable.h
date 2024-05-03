@@ -219,6 +219,7 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
 
   ht_item_t *old_items = ht->items;
   size_t old_length = ht->length;
+  size_t old_capacity = ht->capacity;
   size_t new_cap = 0;
 
   /* grow */
@@ -252,7 +253,7 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
   if (ht->items != old_items) {
     size_t moved = 0;
 
-    for (size_t i = 0; i < ht->length; i++) {
+    for (size_t i = 0; i < old_capacity; i++) {
       ht_item_t *item = &old_items[i];
 
       if (!item->occupied) {
@@ -385,6 +386,9 @@ HT_API void ht_reset(ht_t ht[const static 1])
 {
   ht_dbg(">>", ht);
   ht->length = 0;
+  for (size_t i = 0; i < ht->capacity; i++) {
+    ht->items[i].occupied = false;
+  }
   ht_dbg("<<", ht);
 }
 

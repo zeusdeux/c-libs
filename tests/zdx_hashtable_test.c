@@ -57,9 +57,7 @@ int main(void)
       assertm(strcmp(ret.value.university, "SOME UNI") == 0, "Expected: \"SOME UNI\", Received: %s", ret.value.university);
       assertm(ht.length == 3, "Expected: 3, Received: %zu", ht.length);
 
-
       log(L_INFO, "[HASHTABLE HAPPY PATH TESTS] OK!");
-
     }
 
     arena_reset(&arena);
