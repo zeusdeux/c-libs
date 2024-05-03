@@ -61,7 +61,12 @@ int main(void)
     }
 
     arena_reset(&arena);
+
     ht_reset(&ht);
+    assertm(ht.length == 0, "Expected: 0, Received: %zu", ht.length);
+    for (size_t i = 0; i < ht.capacity; i++) {
+      assertm(!ht.items[i].occupied, "Expected: false, Received: %s", ht.items[i].occupied ? "true" : "false");
+    }
 
     {
       ret = ht_get(&ht, "key-1");
@@ -71,10 +76,14 @@ int main(void)
     }
   }
 
-  log(L_INFO, "<zdx_hashtable_test> All ok!");
+  ht_free(&ht);
+  assertm(ht.items == NULL, "Expected: NULL, Received: %p", (void *)ht.items);
+  assertm(ht.length == 0, "Expected: 0, Received: %zu", ht.length);
+  assertm(ht.capacity == 0, "Expected: 0, Received: %zu", ht.capacity);
 
   arena_free(&arena);
-  ht_free(&ht);
+
+  log(L_INFO, "<zdx_hashtable_test> All ok!");
 
   return 0;
 }

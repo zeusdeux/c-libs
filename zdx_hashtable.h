@@ -61,7 +61,14 @@ typedef struct hashtable_return_t {
  */
 HT_API ht_ret_t ht_set(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
 HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key_cstr[const static 1]);
+
+/* CURSED */
+#ifdef HT_AUTO_SHRINK
+HT_API ht_ret_t ht_remove(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key_cstr[const static 1]);
+#else
 HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key_cstr[const static 1]);
+#endif // HT_AUTO_SHRINK
+
 HT_API void ht_free(ht_t ht[const static 1]);
 HT_API void ht_reset(ht_t ht[const static 1]);
 
@@ -345,10 +352,25 @@ HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key[const stati
   return result;
 }
 
+/* CURSED */ /* TODO: do we really need HT_AUTO_SHRINK? Remove if not */
+#ifdef HT_AUTO_SHRINK
+HT_API ht_ret_t ht_remove(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key[const static 1])
+#else
 HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1])
+#endif // HT_AUTO_SHRINK
 {
   ht_dbg(">>", ht);
   ht_ret_t result = {0};
+
+#ifdef HT_AUTO_SHRINK
+  result = ht_resize(arena, ht);
+
+  if (result.err) {
+    ht_dbg("..", ht);
+    ht_ret_dbg("<<", result);
+    return result;
+  }
+#endif // HT_AUTO_SHRINK
 
   if (!ht->items) {
     result.err = "Cannot remove from an empty hashtable";
