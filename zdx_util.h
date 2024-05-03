@@ -29,6 +29,9 @@
 #include <stdio.h> /* needed for fprintf, etc */
 #include <stdlib.h> /* needed for abort(), exit(), etc */
 
+#define KB * 1024
+#define MB KB * 1024
+
 #define zdx_min(a, b) ((a) < (b) ? (a) : (b))
 #define zdx_max(a, b) ((a) > (b) ? (a) : (b))
 
