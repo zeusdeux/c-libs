@@ -70,13 +70,13 @@ test_zdx_simple_arena_dbg:
 
 test_zdx_hashtable:
 	@echo "--- Running tests on zdx_hashtable.h release including DEBUG flow ---"
-	@clang -DDEBUG $(TEST_FLAGS) ./tests/zdx_hashtable_test.c -o ./tests/zdx_hashtable_test && ./tests/zdx_hashtable_test
+	@clang -DDEBUG $(TEST_FLAGS) ./tests/zdx_hashtable*.c -o ./tests/zdx_hashtable_test && ./tests/zdx_hashtable_test
 	@echo "--- Checking for memory zdx_hashtable.h leaks ---"
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit -- ./tests/zdx_hashtable_test
 
 test_zdx_hashtable_dbg:
 	@echo "--- Running tests on zdx_hashtable.h debug ---"
-	@clang $(DBG_TEST_FLAGS) ./tests/zdx_hashtable_test.c -o ./tests/zdx_hashtable_test_dbg && ./tests/zdx_hashtable_test_dbg
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_hashtable*.c -o ./tests/zdx_hashtable_test_dbg && ./tests/zdx_hashtable_test_dbg
 	@echo "--- Checking for memory zdx_hashtable.h leaks ---"
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --atExit -- ./tests/zdx_hashtable_test_dbg
 

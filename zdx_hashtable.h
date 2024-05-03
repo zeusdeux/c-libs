@@ -30,13 +30,6 @@
 _Static_assert(false, "HT_VALUE_TYPE must be concrete defined type");
 #endif // HT_VALUE_TYPE
 
-#ifndef HT_ARENA_TYPE
-/* this exists so that we can use this hashtable with built in calloc or any other non-arena style allocator */
-/* this helps to satisfy the type check during compile wherever arena->err is accessed */
-typedef struct zdx_ht_fake_arena { const char *err; } zdx_ht_fake_arena;
-#define HT_ARENA_TYPE zdx_ht_fake_arena
-#endif // HT_ARENA_TYPE
-
 #include <stddef.h>
 
 typedef struct hashtable_item_t ht_item_t;
@@ -57,9 +50,14 @@ typedef struct hashtable_return_t {
 #endif // HT_API
 
 /**
- * key must always be a C string i.e., it must end with \0 or all hell will break loose
+ * keys must always be a C string i.e., it must end with \0 or all hell will break loose
  */
+#ifdef HT_ARENA_TYPE
 HT_API ht_ret_t ht_set(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
+#else
+HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
+#endif // HT_ARENA_TYPE
+
 HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key_cstr[const static 1]);
 
 /* CURSED */
@@ -86,9 +84,7 @@ _Static_assert(false, "HT_CALLOC must be defined if HT_FREE is");
 
 #ifndef HT_CALLOC
 #include <stdlib.h>
-// the first arg override is to support passing an arena for an arena allocator based alloc fn
-// same for the last arg as that's needed by an arena allocator based realloc fn
-#define HT_CALLOC(arena, count, size) ((void)((arena)), calloc((count), (size)))
+#define HT_CALLOC calloc
 #endif // HT_CALLOC
 
 #ifndef HT_FREE
@@ -185,7 +181,11 @@ static size_t ht_get_index(const ht_t ht[const static 1], const char key[const s
   return idx;
 }
 
-static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
+#ifdef HT_ARENA_TYPE
+static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[const static 1])
+#else
+static ht_ret_t ht_resize(ht_t ht[const static 1])
+#endif // HT_ARENA_TYPE
 {
   ht_ret_t result = {0};
   float load_factor = ht->capacity ? ht->length / (float)ht->capacity : 0;
@@ -206,11 +206,19 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
     ht->length = 0;
     ht->capacity = 0;
     ht->items = NULL;
+#ifdef HT_ARENA_TYPE
     ht->items = HT_CALLOC(arena, HT_MIN_CAPACITY, sizeof(*ht->items));
+#else
+    ht->items = HT_CALLOC(HT_MIN_CAPACITY, sizeof(*ht->items));
+#endif // HT_ARENA_TYPE
 
     if (!ht->items) {
       // TODO: Is this safe or should arena->err be duplicated? 🤔 It should be safe since arena->err are all string literals IIRC but do confirm it
+#ifdef HT_ARENA_TYPE
       result.err = arena && arena->err ? arena->err : "Memory allocation failed";
+#else
+      result.err = "Memory allocation failed";
+#endif // HT_ARENA_TYPE
 
       ht_dbg("..", ht);
       ht_ret_dbg("<<", result);
@@ -243,11 +251,19 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
 
   /* reallocate ht->items if the new capacity is different from current capacity */
   if (new_cap != ht->capacity) {
+#ifdef HT_ARENA_TYPE
     ht->items = HT_CALLOC(arena, new_cap, sizeof(*ht->items));
+#else
+    ht->items = HT_CALLOC(new_cap, sizeof(*ht->items));
+#endif // HT_ARENA_TYPE
 
     if (!ht->items) {
       // TODO: Is this safe or should arena->err be duplicated? 🤔 It should be safe since arena->err are all string literals IIRC
+#ifdef HT_ARENA_TYPE
       result.err = arena && arena->err ? arena->err : "Memory allocation failed";
+#else
+      result.err = "Memory allocation failed";
+#endif // HT_ARENA_TYPE
 
       ht_dbg("..", ht);
       ht_ret_dbg("<<", result);
@@ -287,12 +303,20 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
   return result;
 }
 
+#ifdef HT_ARENA_TYPE
 HT_API ht_ret_t ht_set(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key[const static 1], const HT_VALUE_TYPE value)
+#else
+HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key[const static 1], const HT_VALUE_TYPE value)
+#endif // HT_ARENA_TYPE
 {
   ht_dbg(">>", ht);
   ht_ret_t result = {0};
 
+#ifdef HT_ARENA_TYPE
   result = ht_resize(arena, ht);
+#else
+  result = ht_resize(ht);
+#endif // HT_ARENA_TYPE
 
   if (result.err) {
     ht_dbg("..", ht);
@@ -363,8 +387,11 @@ HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1
   ht_ret_t result = {0};
 
 #ifdef HT_AUTO_SHRINK
+#ifdef HT_ARENA_TYPE
   result = ht_resize(arena, ht);
-
+#else
+  result = ht_resize(ht);
+#endif // HT_ARENA_TYPE
   if (result.err) {
     ht_dbg("..", ht);
     ht_ret_dbg("<<", result);
