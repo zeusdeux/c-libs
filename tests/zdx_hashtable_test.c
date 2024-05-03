@@ -71,7 +71,7 @@ int main(void)
     }
   }
 
-  log(L_INFO, "<zdx_hashtable> All ok!");
+  log(L_INFO, "<zdx_hashtable_test> All ok!");
 
   arena_free(&arena);
   ht_free(&ht);
