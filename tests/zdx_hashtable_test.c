@@ -14,6 +14,7 @@ typedef struct value {
 #define HT_MIN_CAPACITY 2
 #define HT_VALUE_TYPE val_t
 /* remove all the defines below this to default to using calloc(3) aka non-arena style allocator */
+/* also remove all uses of arena in the test code when using calloc(3) */
 #define HT_ARENA_TYPE arena_t
 #define HT_CALLOC arena_calloc
 #define HT_FREE(...)
