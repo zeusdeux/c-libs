@@ -113,6 +113,8 @@ struct hashtable_item_t {
 #define HT_MAX_LOAD_FACTOR 0.8
 #endif // HT_MAX_LOAD_FACTOR
 
+_Static_assert(HT_MAX_LOAD_FACTOR > HT_MIN_LOAD_FACTOR, "Max load factor of the hashtable should always be greater than the min load factor");
+
 #ifndef HT_MIN_CAPACITY
 #define HT_MIN_CAPACITY 32
 #endif // HT_MIN_CAPACITY
@@ -186,6 +188,7 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
   }
 
   ht_dbg(">>", ht); // only print trace if something ht_resize() actually will do something
+  dbg(".. load factor %0.4f (min: %0.4f max: %0.4f)", load_factor, HT_MIN_LOAD_FACTOR, HT_MAX_LOAD_FACTOR);
 
   /*
    * if items aren't initialized, allocate base size and return aka assume
@@ -214,15 +217,24 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
     return result;
   }
 
-  dbg(".. load factor %0.4f (min: %0.4f max: %0.4f)", load_factor, HT_MIN_LOAD_FACTOR, HT_MAX_LOAD_FACTOR);
-
   ht_item_t *old_items = ht->items;
   size_t old_length = ht->length;
+  size_t new_cap = 0;
 
   /* grow */
   if (load_factor >= HT_MAX_LOAD_FACTOR) {
-    size_t new_cap = ht->capacity * HT_RESIZE_FACTOR;
+    new_cap = ht->capacity * HT_RESIZE_FACTOR;
+  }
 
+#ifdef HT_AUTO_SHRINK
+  /* shrink */
+  if (load_factor <= HT_MIN_LOAD_FACTOR && ht->capacity > HT_MIN_CAPACITY) {
+    new_cap = zdx_max(ht->capacity >> HT_RESIZE_FACTOR, HT_MIN_CAPACITY);
+  }
+#endif // HT_AUTO_SHRINK
+
+  /* reallocate ht->items if the new capacity is different from current capacity */
+  if (new_cap != ht->capacity) {
     ht->items = HT_CALLOC(arena, new_cap, sizeof(*ht->items));
 
     if (!ht->items) {
@@ -235,12 +247,6 @@ static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[static 1])
     }
 
     ht->capacity = new_cap;
-  }
-
-  /* shrink */
-  if (load_factor <= HT_MIN_LOAD_FACTOR) {
-    // TODO: maybe implemented auto shrinking
-    // Remember to not shrink below HT_MIN_CAPACITY
   }
 
   if (ht->items != old_items) {
@@ -367,14 +373,19 @@ HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1
 
 HT_API void ht_free(ht_t ht[const static 1])
 {
+  ht_dbg(">>", ht);
   HT_FREE(ht->items);
-  ht_reset(ht);
+  ht->items = NULL;
+  ht->capacity = 0;
+  ht->length = 0;
+  ht_dbg("<<", ht);
 }
 
 HT_API void ht_reset(ht_t ht[const static 1])
 {
+  ht_dbg(">>", ht);
   ht->length = 0;
-  ht->capacity = 0;
+  ht_dbg("<<", ht);
 }
 
 #endif // ZDX_HASHTABLE_IMPLEMENTATION
