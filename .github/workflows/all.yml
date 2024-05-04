@@ -24,7 +24,7 @@ jobs:
       - shell: bash
         run: |
           gcc -v
-          clang -v
+          clang-15 -v
       - name: Run tests
         shell: bash
         run: |
@@ -43,7 +43,7 @@ jobs:
       - shell: bash
         run: |
           gcc -v
-          clang -v
+          clang-15 -v
       - name: Run tests
         shell: bash
         run: |
