@@ -14,6 +14,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@latest
       - name: Setup clang
         shell: bash
         run: |
@@ -29,6 +30,7 @@ jobs:
     name: Debug
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@latest
       - name: Setup clang
         shell: bash
         run: |
