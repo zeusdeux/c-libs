@@ -1,4 +1,6 @@
 *
+!.github
+!.github/**
 !.gitignore
 !Makefile
 !zdx_*.h

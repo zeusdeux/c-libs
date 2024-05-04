@@ -1,0 +1,40 @@
+name: Test
+
+on:
+  push:
+    paths:
+      - **/*.c
+      - **/*.h
+      - **/mocks/*
+  workflow_dispatch:
+
+jobs:
+  test-release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup clang
+        shell: bash
+        run: |
+          apt update
+          apt install clang
+          clang -v
+      - name: Run tests
+        shell: bash
+        run: |
+          make test
+
+  test-debug:
+    name: Debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup clang
+        shell: bash
+        run: |
+          apt update
+          apt install clang
+          clang -v
+      - name: Run tests
+        shell: bash
+        run: |
+          make test_dbg
