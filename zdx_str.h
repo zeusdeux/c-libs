@@ -88,6 +88,8 @@ void sb_deinit(sb_t sb[const static 1]);
 
 #endif // ZDX_STR_H_
 
+// ----------------------------------------------------------------------------------------------------------------
+
 #ifdef ZDX_STR_IMPLEMENTATION
 
 #include <string.h>

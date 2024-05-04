@@ -1,8 +1,9 @@
+#include "../zdx_test_utils.h"
+
 #define SB_MIN_CAPACITY 1
 #define SB_RESIZE_FACTOR 2
 #define ZDX_STR_IMPLEMENTATION
 #include "../zdx_str.h"
-#include "../zdx_util.h"
 
 
 int main(void)
@@ -92,7 +93,7 @@ int main(void)
 
   // ---- END STRING BUILDER TESTS ----
 
-  log(L_INFO, "<zdx_str_test> All ok!\n");
+  testlog(L_INFO, "<zdx_str_test> All ok!\n");
 
   return 0;
 }

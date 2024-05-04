@@ -22,7 +22,6 @@
  * SOFTWARE.
  *
  */
-
 #ifndef ZDX_HASHTABLE_H_
 #define ZDX_HASHTABLE_H_
 
@@ -53,7 +52,7 @@ typedef struct hashtable_return_t {
  * keys must always be a C string i.e., it must end with \0 or all hell will break loose
  */
 #ifdef HT_ARENA_TYPE
-HT_API ht_ret_t ht_set(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
+HT_API ht_ret_t ht_set(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
 #else
 HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key_cstr[const static 1], const HT_VALUE_TYPE value);
 #endif // HT_ARENA_TYPE
@@ -61,11 +60,11 @@ HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key_cstr[const static
 HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key_cstr[const static 1]);
 
 /* CURSED */
-#ifdef HT_AUTO_SHRINK
-HT_API ht_ret_t ht_remove(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key_cstr[const static 1]);
+#if defined(HT_AUTO_SHRINK) && defined(HT_ARENA_TYPE)
+HT_API ht_ret_t ht_remove(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key_cstr[const static 1]);
 #else
 HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key_cstr[const static 1]);
-#endif // HT_AUTO_SHRINK
+#endif // HT_AUTO_SHRINK && HT_ARENA_TYPE
 
 HT_API void ht_free(ht_t ht[const static 1]);
 HT_API void ht_reset(ht_t ht[const static 1]);
@@ -73,6 +72,15 @@ HT_API void ht_reset(ht_t ht[const static 1]);
 #endif // ZDX_HASHTABLE_H_
 
 #ifdef ZDX_HASHTABLE_IMPLEMENTATION
+
+#include <stdbool.h>
+#include <string.h> // memcmp and friends
+
+#include "./zdx_util.h"
+
+#if defined(HT_ARENA_TYPE) && (!defined(HT_CALLOC) || !defined(HT_FREE))
+_Static_assert(false, "HT_CALLOC and HT_FREE must be defined if HT_ARENA_TYPE is");
+#endif
 
 #if defined(HT_CALLOC) && !defined(HT_FREE)
 _Static_assert(false, "HT_FREE must be defined if HT_CALLOC is");
@@ -91,11 +99,6 @@ _Static_assert(false, "HT_CALLOC must be defined if HT_FREE is");
 // can be a noop for an arena based allocator
 #define HT_FREE(ptr) free((ptr))
 #endif // HT_FREE
-
-#include <stdbool.h>
-#include <string.h> // memcmp and friends
-
-#include "./zdx_util.h"
 
 struct hashtable_item_t {
   bool occupied;
@@ -116,6 +119,8 @@ struct hashtable_item_t {
 #define HT_MAX_LOAD_FACTOR 0.8
 #endif // HT_MAX_LOAD_FACTOR
 
+_Static_assert(HT_MIN_LOAD_FACTOR > 0 && HT_MIN_LOAD_FACTOR <= 1, "Min load factor of the hashtable should be between 0 and 1");
+_Static_assert(HT_MAX_LOAD_FACTOR > 0 && HT_MAX_LOAD_FACTOR <= 1, "Max load factor of the hashtable should be between 0 and 1");
 _Static_assert(HT_MAX_LOAD_FACTOR > HT_MIN_LOAD_FACTOR, "Max load factor of the hashtable should always be greater than the min load factor");
 
 #ifndef HT_MIN_CAPACITY
@@ -161,6 +166,7 @@ static inline size_t hash_fnv1(const char key[const static 1], size_t len)
                        *(item)->key != *key ||                  \
                        memcmp((item)->key, (key), (len)) != 0)
 
+/* this function assumes ht is validated before calling it. For e.g., ht->capacity > 0, etc */
 static size_t ht_get_index(const ht_t ht[const static 1], const char key[const static 1], const size_t len)
 {
   size_t idx = hash_djb2(key, len) % ht->capacity;
@@ -172,6 +178,7 @@ static size_t ht_get_index(const ht_t ht[const static 1], const char key[const s
   size_t k = 1;
   size_t max_k = 128;
 
+  /* open addressing if we still have collisions */
   while(ht_has_collision(&ht->items[idx], key, len)) {
     idx += (k * k);
     idx = idx % ht->capacity;
@@ -182,7 +189,7 @@ static size_t ht_get_index(const ht_t ht[const static 1], const char key[const s
 }
 
 #ifdef HT_ARENA_TYPE
-static ht_ret_t ht_resize(HT_ARENA_TYPE *arena, ht_t ht[const static 1])
+static ht_ret_t ht_resize(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1])
 #else
 static ht_ret_t ht_resize(ht_t ht[const static 1])
 #endif // HT_ARENA_TYPE
@@ -304,7 +311,7 @@ static ht_ret_t ht_resize(ht_t ht[const static 1])
 }
 
 #ifdef HT_ARENA_TYPE
-HT_API ht_ret_t ht_set(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key[const static 1], const HT_VALUE_TYPE value)
+HT_API ht_ret_t ht_set(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key[const static 1], const HT_VALUE_TYPE value)
 #else
 HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key[const static 1], const HT_VALUE_TYPE value)
 #endif // HT_ARENA_TYPE
@@ -351,7 +358,7 @@ HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key[const stati
   ht_dbg(">>", ht);
   ht_ret_t result = {0};
 
-  if (!ht->items) {
+  if (!ht->items || !ht->length || !ht->capacity) {
     result.err = "Key not found (empty hashtable)";
 
     ht_ret_dbg("<<", result);
@@ -359,7 +366,6 @@ HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key[const stati
   }
 
   size_t key_length = strlen(key);
-
   size_t idx = ht_get_index(ht, key, key_length);
 
   if (!ht->items[idx].occupied) {
@@ -378,7 +384,7 @@ HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key[const stati
 
 /* CURSED */ /* TODO: do we really need HT_AUTO_SHRINK? Remove if not */
 #ifdef HT_AUTO_SHRINK
-HT_API ht_ret_t ht_remove(HT_ARENA_TYPE *const arena, ht_t ht[const static 1], const char key[const static 1])
+HT_API ht_ret_t ht_remove(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key[const static 1])
 #else
 HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1])
 #endif // HT_AUTO_SHRINK
@@ -399,15 +405,14 @@ HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1
   }
 #endif // HT_AUTO_SHRINK
 
-  if (!ht->items) {
-    result.err = "Cannot remove from an empty hashtable";
+  if (!ht->items || !ht->length || !ht->capacity) {
+    result.err = "Cannot remove element (empty hashtable)";
 
     ht_ret_dbg("<<", result);
     return result;
   }
 
   size_t key_length = strlen(key);
-
   size_t idx = ht_get_index(ht, key, key_length);
 
   ht->items[idx].occupied = false;

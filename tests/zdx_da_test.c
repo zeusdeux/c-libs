@@ -3,8 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 #include "../zdx_da.h"
-#include "../zdx_util.h"
+#include "../zdx_test_utils.h"
 
 typedef struct {
   char *input, *output;
@@ -25,25 +26,16 @@ typedef struct {
 
 void print_repl_history(ReplHistory *r)
 {
-  const char *zdx_disable_test_output = getenv("ZDX_DISABLE_TEST_OUTPUT");
-  bool disable_test_output = zdx_disable_test_output != NULL && ((strcmp(zdx_disable_test_output, "1") == 0)
-                                                                 || (strcmp(zdx_disable_test_output, "true") == 0)
-                                                                 || (strcmp(zdx_disable_test_output, "TRUE") == 0));
+  dbg("int i = %d\t| length %zu\t| capacity %zu", r->i, r->length, r->capacity);
 
-  if (disable_test_output) {
-    return;
-  }
-
-  printf("int i = %d\t| length %zu\t| capacity %zu\n", r->i, r->length, r->capacity);
 
   if (!r->length) {
-    printf("No items!\n");
+    dbg("No items!");
     return;
   }
 
   for (size_t i = 0; i < r->length; i++) {
-    ReplHistoryItem rhi = r->items[i];
-    printf("items[%zu] = { .input = %s, .output = %s }\n", i, rhi.input, rhi.output);
+    dbg("items[%zu] = { .input = %s, .output = %s }", i, r->items[i].input, r->items[i].output);
   }
 }
 
@@ -172,7 +164,7 @@ int main(void)
 
   assertm(replHistory.i == 1090, "After free(), other members of dyn array container should still work as expected");
 
-  log(L_INFO, "<zdx_da_test> All ok!\n");
+  testlog(L_INFO, "<zdx_da_test> All ok!\n");
 
   return 0;
 }
