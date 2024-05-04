@@ -18,8 +18,8 @@ jobs:
       - name: Setup clang
         shell: bash
         run: |
-          apt update
-          apt install clang
+          sudo apt update
+          sudo apt install clang
           clang -v
       - name: Run tests
         shell: bash
@@ -34,8 +34,8 @@ jobs:
       - name: Setup clang
         shell: bash
         run: |
-          apt update
-          apt install clang
+          sudo apt update
+          sudo apt install clang
           clang -v
       - name: Run tests
         shell: bash
