@@ -27,7 +27,7 @@
 #define ZDX_UTIL_H_
 
 #include <stdio.h> /* needed for fprintf, etc */
-#include <stdlib.h> /* needed for abort(), exit(), etc */
+#include <stdlib.h> /* needed for abort(), exit(), EXIT_FAILURE macro etc */
 
 #define KB * 1024
 #define MB KB * 1024
@@ -54,7 +54,7 @@
 
 #define bail(...) do {                          \
     log(L_ERROR, __VA_ARGS__);                  \
-    exit(1);                                    \
+    exit(EXIT_FAILURE);                         \
   } while(0)
 
 #if defined(ZDX_TRACE_ENABLE)
