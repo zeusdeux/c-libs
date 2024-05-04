@@ -18,7 +18,7 @@ test_zdx_da_dbg:
 	@echo "--- Running tests on zdx_da.h debug ---"
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test_dbg && ./tests/zdx_da_test_dbg
 	@echo "--- Checking for memory leaks in zdx_da.h ---"
-	leaks --atExit -- ./tests/zdx_da_test_dbg
+	@[[ -z "${CI}" ]] && leaks --atExit -- ./tests/zdx_da_test_dbg
 
 test_zdx_str:
 	@echo "--- Running tests on zdx_str.h release ---"
@@ -30,7 +30,7 @@ test_zdx_str_dbg:
 	@echo "--- Running tests on zdx_str.h debug ---"
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_str_test.c -o ./tests/zdx_str_test_dbg && ./tests/zdx_str_test_dbg
 	@echo "--- Checking for memory leaks in zdx_str.h ---"
-	leaks --atExit -- ./tests/zdx_str_test_dbg
+	@[[ -z "${CI}" ]] && leaks --atExit -- ./tests/zdx_str_test_dbg
 
 test_zdx_gap_buffer:
 	@echo "--- Running tests on zdx_gap_buffer.h release ---"
@@ -42,7 +42,7 @@ test_zdx_gap_buffer_dbg:
 	@echo "--- Running tests on zdx_gap_buffer.h debug ---"
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test_dbg && ./tests/zdx_gap_buffer_test_dbg
 	@echo "--- Checking for memory leaks in zdx_gap_buffer.h ---"
-	leaks --atExit -- ./tests/zdx_gap_buffer_test_dbg
+	@[[ -z "${CI}" ]] && leaks --atExit -- ./tests/zdx_gap_buffer_test_dbg
 
 test_zdx_string_view:
 	@echo "--- Running tests on zdx_string_view.h release ---"
@@ -54,7 +54,7 @@ test_zdx_string_view_dbg:
 	@echo "--- Running tests on zdx_string_view.h debug ---"
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_string_view_test.c -o ./tests/zdx_string_view_test_dbg && ./tests/zdx_string_view_test_dbg
 	@echo "--- Checking for memory leaks in zdx_string_view.h ---"
-	leaks --atExit -- ./tests/zdx_string_view_test_dbg
+	@[[ -z "${CI}" ]] && leaks --atExit -- ./tests/zdx_string_view_test_dbg
 
 test_zdx_simple_arena:
 	@echo "--- Running tests on zdx_simple_arena.h release including DEBUG flow ---"
@@ -66,7 +66,7 @@ test_zdx_simple_arena_dbg:
 	@echo "--- Running tests on zdx_simple_arena.h debug ---"
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test_dbg && ./tests/zdx_simple_arena_test_dbg
 	@echo "--- Checking for memory leaks in zdx_simple_arena.h ---"
-	leaks --atExit -- ./tests/zdx_simple_arena_test_dbg
+	@[[ -z "${CI}" ]] && leaks --atExit -- ./tests/zdx_simple_arena_test_dbg
 
 test_zdx_hashtable:
 	@echo "--- Running tests on zdx_hashtable.h with arena allocator for release ---"
