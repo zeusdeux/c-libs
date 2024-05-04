@@ -4,9 +4,9 @@ on:
   push:
     paths:
       - .github/**/*
-      - **/*.c
-      - **/*.h
-      - **/mocks/*
+      - ./**/*.c
+      - ./**/*.h
+      - ./**/mocks/*
   workflow_dispatch:
 
 jobs:
