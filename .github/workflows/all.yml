@@ -3,6 +3,7 @@ name: Test
 on:
   push:
     paths:
+      - .github/**/*
       - **/*.c
       - **/*.h
       - **/mocks/*
