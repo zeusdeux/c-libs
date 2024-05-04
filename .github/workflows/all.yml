@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - .github/**/*
-      - ./Makefile
+      - Makefile
       - ./**/*.c
       - ./**/*.h
       - ./**/mocks/*
