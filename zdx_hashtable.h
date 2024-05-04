@@ -59,7 +59,6 @@ HT_API ht_ret_t ht_set(ht_t ht[const static 1], const char key_cstr[const static
 
 HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key_cstr[const static 1]);
 
-/* CURSED */
 #if defined(HT_AUTO_SHRINK) && defined(HT_ARENA_TYPE)
 HT_API ht_ret_t ht_remove(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key_cstr[const static 1]);
 #else
@@ -70,6 +69,8 @@ HT_API void ht_free(ht_t ht[const static 1]);
 HT_API void ht_reset(ht_t ht[const static 1]);
 
 #endif // ZDX_HASHTABLE_H_
+
+// ----------------------------------------------------------------------------------------------------------------
 
 #ifdef ZDX_HASHTABLE_IMPLEMENTATION
 
@@ -382,8 +383,8 @@ HT_API ht_ret_t ht_get(const ht_t ht[const static 1], const char key[const stati
   return result;
 }
 
-/* CURSED */ /* TODO: do we really need HT_AUTO_SHRINK? Remove if not */
-#ifdef HT_AUTO_SHRINK
+/* TODO: do we really need HT_AUTO_SHRINK? Remove if not */
+#if defined(HT_AUTO_SHRINK) && defined(HT_ARENA_TYPE)
 HT_API ht_ret_t ht_remove(HT_ARENA_TYPE arena[const static 1], ht_t ht[const static 1], const char key[const static 1])
 #else
 HT_API ht_ret_t ht_remove(ht_t ht[const static 1], const char key[const static 1])

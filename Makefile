@@ -69,8 +69,7 @@ test_zdx_simple_arena_dbg:
 	leaks --atExit -- ./tests/zdx_simple_arena_test_dbg
 
 test_zdx_hashtable:
-	@echo "--- Running tests on zdx_hashtable.h release ---"
-
+	@echo "--- Running tests on zdx_hashtable.h with arena allocator for release ---"
 # using arena_t from zdx_simple_arena.h. Also no free needed as we are using an arena
 	@clang -DHT_ARENA_TYPE=arena_t \
 		-DHT_CALLOC=arena_calloc -D'HT_FREE(...)' \
@@ -78,6 +77,7 @@ test_zdx_hashtable:
 		-DTEST_EPILOGUE="testlog(L_INFO, \"<zdx_hashtable_arena_test> All ok!\n\")" \
 		$(TEST_FLAGS) ./tests/zdx_hashtable_test.c -o ./tests/zdx_hashtable_with_arena_test && ./tests/zdx_hashtable_with_arena_test
 
+	@echo "--- Running tests on zdx_hashtable.h with calloc(3) for release ---"
 	@clang \
 		-DTEST_PROLOGUE="testlog(L_INFO, \"<zdx_hashtable_non_arena_test> Starting tests...\")" \
 		-DTEST_EPILOGUE="testlog(L_INFO, \"<zdx_hashtable_non_arena_test> All ok!\n\")" \
@@ -90,8 +90,7 @@ test_zdx_hashtable:
 	@ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit 2>/dev/null -- ./tests/zdx_hashtable_without_arena_test
 
 test_zdx_hashtable_dbg:
-	@echo "--- Running tests on zdx_hashtable.h debug ---"
-
+	@echo "--- Running tests on zdx_hashtable.h with arena allocator for debug ---"
 # using arena_t from zdx_simple_arena.h. Also no free needed as we are using an arena
 	@clang -DHT_ARENA_TYPE=arena_t \
 		-DHT_CALLOC=arena_calloc -D'HT_FREE(...)' \
@@ -99,6 +98,7 @@ test_zdx_hashtable_dbg:
 		-DTEST_EPILOGUE="testlog(L_INFO, \"<zdx_hashtable_arena_test> All ok!\n\")" \
 		$(DBG_TEST_FLAGS) ./tests/zdx_hashtable_test.c -o ./tests/zdx_hashtable_with_arena_test_dbg && ./tests/zdx_hashtable_with_arena_test_dbg
 
+	@echo "--- Running tests on zdx_hashtable.h with calloc(3) for debug ---"
 	@clang \
 		-DTEST_PROLOGUE="testlog(L_INFO, \"<zdx_hashtable_non_arena_test> Starting tests...\")" \
 		-DTEST_EPILOGUE="testlog(L_INFO, \"<zdx_hashtable_non_arena_test> All ok!\n\")" \
