@@ -28,6 +28,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          alias clang=clang-15
           make test
 
   test-debug:
@@ -47,4 +48,5 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          alias clang=clang-15
           make test_dbg
