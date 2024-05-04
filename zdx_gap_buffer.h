@@ -241,7 +241,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
   /* Lower bound of new gap start position aka cursor is 0 */
   signed_new_gap_start = signed_new_gap_start < 0 ? 0 : signed_new_gap_start;
   /* Upper bound of new gap start position aka cursor is one beyond end of gb->buf */
-  signed_new_gap_start = signed_new_gap_start > gb->length ? (int64_t)gb->length : signed_new_gap_start;
+  signed_new_gap_start = signed_new_gap_start > (int64_t)gb->length ? (int64_t)gb->length : signed_new_gap_start;
 
   /*
    * safely treat as size_t due to bounded assignments above
