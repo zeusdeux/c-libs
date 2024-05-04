@@ -20,8 +20,9 @@ jobs:
         shell: bash
         run: |
           sudo apt update
-          sudo apt install clang
-          clang -v
+          sudo apt install clang=15
+      - shell: bash
+        run: clang -v
       - name: Run tests
         shell: bash
         run: |
@@ -36,8 +37,9 @@ jobs:
         shell: bash
         run: |
           sudo apt update
-          sudo apt install clang
-          clang -v
+          sudo apt install clang=15
+      - shell: bash
+        run: clang -v
       - name: Run tests
         shell: bash
         run: |
