@@ -28,7 +28,7 @@
 #pragma GCC diagnostic error "-Wnonnull"
 #pragma GCC diagnostic error "-Wnull-dereference"
 
-#include <stdlib.h>
+#include <stdlib.h> /* malloc and friends */
 #include <stdbool.h>
 
 #ifndef FL_MALLOC
@@ -51,9 +51,11 @@ typedef struct file_content {
  * It returns a char* that must be freed by the caller
  */
 fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode);
-void fc_deinit(fl_content_t *fc);
+void fc_deinit(fl_content_t fc[const static 1]);
 
 #endif // ZDX_FILE_H_
+
+// ----------------------------------------------------------------------------------------------------------------
 
 #ifdef ZDX_FILE_IMPLEMENTATION
 
@@ -68,6 +70,9 @@ void fc_deinit(fl_content_t *fc);
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
+/* Needed for strerror */
+#include <string.h>
+
 
 fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode)
 {
@@ -136,7 +141,7 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
   return fc;
 }
 
-void fc_deinit(fl_content_t *fc)
+void fc_deinit(fl_content_t fc[const static 1])
 {
   fc_dbg(">>", *fc);
 

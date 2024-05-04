@@ -1,4 +1,5 @@
-#include "../zdx_util.h"
+#include "../zdx_test_utils.h"
+
 #define ZDX_STRING_VIEW_IMPLEMENTATION
 #include "../zdx_string_view.h"
 
@@ -124,6 +125,7 @@ int main(void)
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
   }
 
-  log(L_INFO, "<zdx_string_view_test> All ok!\n");
+  testlog(L_INFO, "<zdx_string_view_test> All ok!\n");
+
   return 0;
 }

@@ -1,12 +1,15 @@
+#include "../zdx_test_utils.h"
+
+#define ZDX_FILE_IMPLEMENTATION
+#include "../zdx_file.h"
+
+#define ZDX_STR_IMPLEMENTATION
+#include "../zdx_str.h"
+
 #define GB_INIT_LENGTH 1
 #define GB_MIN_GAP_SIZE 2
 #define ZDX_GAP_BUFFER_IMPLEMENTATION
 #include "../zdx_gap_buffer.h"
-#include "../zdx_util.h"
-#define ZDX_FILE_IMPLEMENTATION
-#include "../zdx_file.h"
-#define ZDX_STR_IMPLEMENTATION
-#include "../zdx_str.h"
 
 int main(void)
 {
@@ -320,5 +323,5 @@ int main(void)
   }
   // ---- END GAP BUFFER TESTS ----
 
-  log(L_INFO, "<zdx_gap_buffer_test> All ok!\n");
+  testlog(L_INFO, "<zdx_gap_buffer_test> All ok!\n");
 }

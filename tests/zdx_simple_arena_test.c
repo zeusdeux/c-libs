@@ -5,17 +5,14 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
-#include "../zdx_util.h"
+
+#include "../zdx_test_utils.h"
+
 #define SA_DEFAULT_ALIGNMENT 8 // to make sure tests work as expected across platforms
 #define ZDX_SIMPLE_ARENA_IMPLEMENTATION
 #include "../zdx_simple_arena.h"
 
 static void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t expected_offset, const size_t expected_alignment);
-/* static void print_arena(arena_t *const ar) */
-/* { */
-/*   log(L_INFO, "arena %p \t| size %zu \t| offset %zu (%#zx) \t| err %s", */
-/*          ar->arena, ar->size, ar->offset, ((uintptr_t)ar->arena + ar->offset), ar->err); */
-/* } */
 
 int main(void)
 {
@@ -35,7 +32,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA CREATE HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA CREATE HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -50,7 +47,7 @@ int main(void)
       assertm(!arena_free(&arena) && arena.err,
               "Expected: free-ing an unallocated arena should fail with '%s -> %s', Received: arena_free worked", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA CREATE ERROR PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA CREATE ERROR PATH TESTS] OK!");
     }
 
 #ifdef DEBUG
@@ -72,7 +69,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA CREATE DEBUG PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA CREATE DEBUG PATH TESTS] OK!");
     }
 #endif
   }
@@ -106,7 +103,7 @@ int main(void)
       assertm(arena.size == 0, "Expected: 0, Received: %zu", arena.size);
       assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
 
-      log(L_INFO, "[ARENA FREE HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA FREE HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -120,7 +117,7 @@ int main(void)
       assertm(arena.size == 0, "Expected: %d, Received: %zu", 0, arena.size);
       assertm(arena.offset == 0, "Expected: 0, Received: %zu", arena.offset);
 
-      log(L_INFO, "[ARENA FREE ERROR PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA FREE ERROR PATH TESTS] OK!");
     }
   }
 
@@ -179,7 +176,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA ALLOC HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA ALLOC HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -238,7 +235,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA ALLOC ERROR PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA ALLOC ERROR PATH TESTS] OK!");
     }
   }
 
@@ -295,7 +292,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA RESET HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA RESET HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -335,7 +332,7 @@ int main(void)
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
 
-      log(L_INFO, "[ARENA CALLOC HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA CALLOC HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -354,7 +351,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA CALLOC ERROR PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA CALLOC ERROR PATH TESTS] OK!");
     }
   }
 
@@ -400,7 +397,7 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA REALLOC HAPPY PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA REALLOC HAPPY PATH TESTS] OK!");
     }
 
     {
@@ -451,11 +448,11 @@ int main(void)
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
-      log(L_INFO, "[ARENA REALLOC ERROR PATH TESTS] OK!");
+      testlog(L_INFO, "[ARENA REALLOC ERROR PATH TESTS] OK!");
     }
   }
 
-  log(L_INFO, "<zdx_simple_arena_test> All ok!\n");
+  testlog(L_INFO, "<zdx_simple_arena_test> All ok!\n");
   return 0;
 }
 

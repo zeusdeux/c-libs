@@ -55,14 +55,14 @@
 #define bail(...) do {                          \
     log(L_ERROR, __VA_ARGS__);                  \
     exit(1);                                    \
-  } while(0);
+  } while(0)
 
 #if defined(ZDX_TRACE_ENABLE)
 #define dbg(...) do {                                               \
     fprintf(stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__); \
     fprintf(stderr, __VA_ARGS__);                                   \
     fprintf(stderr, "\n");                                          \
-  } while(0);
+  } while(0)
 #else
 #define dbg(...)
 #endif // ZDX_TRACE_ENABLE
@@ -83,12 +83,12 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
   "INFO"
 };
 
-#define log(level, ...) do {                              \
-    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);       \
-    fprintf(stderr, "[%s] ", ZDX_LOG_LEVEL_STR[(level)]); \
-    fprintf(stderr, __VA_ARGS__);                         \
-    fprintf(stderr, "\n");                                \
-  } while(0);
+#define log(level, ...) do {                                    \
+    fprintf(stderr, "%s:%d: ", __FILE__, __LINE__);             \
+    fprintf(stderr, "[%s] ", ZDX_LOG_LEVEL_STR[(level)]);       \
+    fprintf(stderr, __VA_ARGS__);                               \
+    fprintf(stderr, "\n");                                      \
+  } while(0)
 #endif // ZDX_LOG_DISABLE
 
 #endif // ZDX_UTIL_H_

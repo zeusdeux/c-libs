@@ -72,6 +72,12 @@ size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static
 
 #endif // ZDX_GAP_BUFFER_
 
+// ----------------------------------------------------------------------------------------------------------------
+// TODO: Fix the casts to and from int64_t and size_t as size_t could
+// very likely be much smaller than int64_t so int64_t -> size_t could
+// cause size_t to overflow and result in undefined runtime behavior.
+// Plus, strict aliasing homie.
+
 #ifdef ZDX_GAP_BUFFER_IMPLEMENTATION
 
 #include <string.h>
@@ -231,11 +237,11 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
   gb_dbg(">>", gb);
   gb_assert_validity(gb);
 
-  int64_t signed_new_gap_start = gb->gap_start_ + pos;
+  int64_t signed_new_gap_start = (int64_t)gb->gap_start_ + pos;
   /* Lower bound of new gap start position aka cursor is 0 */
   signed_new_gap_start = signed_new_gap_start < 0 ? 0 : signed_new_gap_start;
   /* Upper bound of new gap start position aka cursor is one beyond end of gb->buf */
-  signed_new_gap_start = (size_t) signed_new_gap_start > gb->length ? gb->length : signed_new_gap_start;
+  signed_new_gap_start = signed_new_gap_start > gb->length ? (int64_t)gb->length : signed_new_gap_start;
 
   /*
    * safely treat as size_t due to bounded assignments above
@@ -267,7 +273,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
 
   /* Move left */
   if (new_gap_start < gb->gap_start_) {
-    dbg("!! move left")
+    dbg("!! move left");
     const void *src = (void *)(gb->buf + new_gap_start);
     void *dst = (void *)(gb->buf + new_gap_start + curr_gap_len);
     memmove(dst, src, gb->gap_start_ - new_gap_start);
@@ -278,7 +284,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
 
   /* Move right */
   if (new_gap_start > gb->gap_start_) {
-    dbg("!! move right")
+    dbg("!! move right");
     const void *src = (void *)(gb->buf + gb->gap_end_);
     void *dst = (void *)(gb->buf + gb->gap_start_);
     memmove(dst, src, new_gap_start - gb->gap_start_);
@@ -377,22 +383,22 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
 
   /* delete */
   if (count > 0) {
-    int64_t new_gap_end = gb->gap_end_ + count;
-    new_gap_end = new_gap_end > ((int64_t) gb_buf_len_with_gap(gb)) ? gb_buf_len_with_gap(gb) : new_gap_end;
+    int64_t new_gap_end = (int64_t)gb->gap_end_ + count;
+    new_gap_end = new_gap_end > ((int64_t) gb_buf_len_with_gap(gb)) ? (int64_t)gb_buf_len_with_gap(gb) : new_gap_end;
 
     dbg("-- delete count %lld \t| gap end %zu \t| new gap end %lld", count, gb->gap_end_, new_gap_end);
-    gb->length = gb->length - (new_gap_end - gb->gap_end_);
-    gb->gap_end_ = new_gap_end;
+    gb->length = gb->length - ((size_t)new_gap_end - gb->gap_end_);
+    gb->gap_end_ = (size_t)new_gap_end;
   }
 
   /* backspace */
   if (count < 0) {
-    int64_t new_gap_start = gb->gap_start_ + count; /* count will be -ve hence "+" */
+    int64_t new_gap_start = (int64_t)gb->gap_start_ + count; /* count will be -ve hence "+" */
     new_gap_start = new_gap_start < 0 ? 0 : new_gap_start;
 
     dbg("-- backspc count %lld \t| gap start %zu \t| new gap start %lld", count ,gb->gap_start_, new_gap_start);
-    gb->length = gb->length - (gb->gap_start_ - new_gap_start);
-    gb->gap_start_ = new_gap_start;
+    gb->length = gb->length - (gb->gap_start_ - (size_t)new_gap_start);
+    gb->gap_start_ = (size_t)new_gap_start;
   }
 
   gb_dbg("<<", gb);
@@ -426,7 +432,7 @@ size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static
         return 0;
       }
 
-      size_t bounded_count = ((int64_t)curr_cursor + count) < 0 ? curr_cursor : llabs(count);
+      size_t bounded_count = ((int64_t)curr_cursor + count) < 0 ? curr_cursor : (size_t)llabs(count);
       dbg("!! copy left \t| chars copy count %zu", bounded_count);
 
       const void *src = gb->buf + (curr_cursor - bounded_count);
@@ -446,7 +452,7 @@ size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static
         return 0;
       }
 
-      size_t bounded_count = ((size_t)count) > (gb->length - curr_cursor) ? (gb->length - curr_cursor) : llabs(count);
+      size_t bounded_count = ((size_t)count) > (gb->length - curr_cursor) ? (gb->length - curr_cursor) : (size_t)llabs(count);
       dbg("!! copy right \t| chars copy count %zu", bounded_count);
 
       const void *src = gb->buf + gb->gap_end_;
