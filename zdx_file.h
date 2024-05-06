@@ -59,6 +59,8 @@ void fc_deinit(fl_content_t fc[const static 1]);
 
 #ifdef ZDX_FILE_IMPLEMENTATION
 
+#include "./zdx_util.h"
+
 #define fc_dbg(label, fc) dbg("%s valid %d \t| err %s \t| contents (%p) %s", \
                               (label), (fc).is_valid, (fc).err_msg, ((void *)(fc).contents), (char *)(fc).contents)
 
