@@ -36,13 +36,17 @@ typedef struct file_content {
   void *contents;
 } fl_content_t;
 
+#ifndef FL_API
+#define FL_API
+#endif // FL_API
+
 #ifdef FL_ARENA_TYPE
-fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode);
+FL_API fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode);
 #else
-fl_content_t fl_read_file(const char *restrict path, const char *restrict mode);
+FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict mode);
 #endif // FL_ARENA_TYPE
 
-void fc_deinit(fl_content_t fc[const static 1]);
+FL_API void fc_deinit(fl_content_t fc[const static 1]);
 
 #endif // ZDX_FILE_H_
 
@@ -84,9 +88,9 @@ _Static_assert(false, "When FL_ARENA_TYPE is defined, FL_ALLOC and FL_FREE must 
 
 
 #ifdef FL_ARENA_TYPE
-fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode)
+FL_API fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode)
 #else
-fl_content_t fl_read_file(const char *restrict path, const char *restrict mode)
+FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict mode)
 #endif //FL_ARENA_TYPE
 {
   dbg(">> path %s \t| mode %s", path, mode);
@@ -153,7 +157,7 @@ fl_content_t fl_read_file(const char *restrict path, const char *restrict mode)
   return fc;
 }
 
-void fc_deinit(fl_content_t fc[const static 1])
+FL_API void fc_deinit(fl_content_t fc[const static 1])
 {
   fc_dbg(">>", *fc);
 
