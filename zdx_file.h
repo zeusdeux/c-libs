@@ -28,29 +28,20 @@
 #pragma GCC diagnostic error "-Wnonnull"
 #pragma GCC diagnostic error "-Wnull-dereference"
 
-#include <stdlib.h> /* malloc and friends */
-#include <stdbool.h>
-
-#ifndef FL_MALLOC
-#define FL_MALLOC malloc
-#endif // FL_MALLOC
-
-#ifndef FL_FREE
-#define FL_FREE free
-#endif // FL_FREE
+#include <stddef.h>
 
 typedef struct file_content {
-  bool is_valid;
-  char *err_msg;
-  void *contents;
+  const char *err;
   size_t size; /* not off_t as size is set to the return value of fread which is size_t. Also off_t is a POSIX thing and size_t is std C */
+  void *contents;
 } fl_content_t;
 
-/*
- * The arguments to fl_read_full_file are the same as fopen.
- * It returns a char* that must be freed by the caller
- */
-fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode);
+#ifdef FL_ARENA_TYPE
+fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode);
+#else
+fl_content_t fl_read_file(const char *restrict path, const char *restrict mode);
+#endif // FL_ARENA_TYPE
+
 void fc_deinit(fl_content_t fc[const static 1]);
 
 #endif // ZDX_FILE_H_
@@ -61,46 +52,60 @@ void fc_deinit(fl_content_t fc[const static 1]);
 
 #include "./zdx_util.h"
 
-#define fc_dbg(label, fc) dbg("%s valid %d \t| err %s \t| contents (%p) %s", \
-                              (label), (fc).is_valid, (fc).err_msg, ((void *)(fc).contents), (char *)(fc).contents)
+#ifndef FL_ASSERT
+#define FL_ASSERT assertm
+#endif // FL_ASSERT
+
+#define fc_dbg(label, fc) dbg("%s err %s \t| contents (%p) %s", \
+                              (label), (fc).err, ((void *)(fc).contents), (char *)(fc).contents)
 
 /* Guarded as unistd.h, sys/stat.h and friends are POSIX specific */
 #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
 
-/* needed for PATH_MAX */
-#include <limits.h>
+#include <stdbool.h>
+#include <stdlib.h> /* Needed for malloc, free, etc */
+#include <string.h> /* Needed for strerror */
+#include <limits.h> /* needed for PATH_MAX */
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-/* Needed for strerror */
-#include <string.h>
+
+#if defined(FL_ARENA_TYPE) && (!defined(FL_ALLOC) || !defined(FL_FREE))
+_Static_assert(false, "When FL_ARENA_TYPE is defined, FL_ALLOC and FL_FREE must also be defined");
+#endif
+
+#ifndef FL_ALLOC
+#define FL_ALLOC malloc
+#endif // FL_ALLOC
+
+#ifndef FL_FREE
+#define FL_FREE free
+#endif // FL_FREE
 
 
-fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mode)
+#ifdef FL_ARENA_TYPE
+fl_content_t fl_read_file(FL_ARENA_TYPE arena[const static 1], const char *restrict path, const char *restrict mode)
+#else
+fl_content_t fl_read_file(const char *restrict path, const char *restrict mode)
+#endif //FL_ARENA_TYPE
 {
   dbg(">> path %s \t| mode %s", path, mode);
 
   /* guarded as it does a stack allocation */
 #ifdef ZDX_TRACE_ENABLE
   char cwd[PATH_MAX] = {0};
-  dbg(">> cwd %s", getcwd(cwd, sizeof(cwd)));
+  dbg(".. cwd %s", getcwd(cwd, sizeof(cwd)));
 #endif
 
   /* init return type */
-  fl_content_t fc = {
-    .is_valid = false,
-    .err_msg = NULL,
-    .contents = NULL,
-    .size = 0
-  };
+  fl_content_t fc = {0};
 
   /* open file */
   FILE *f = fopen(path, mode);
 
   if (f == NULL) {
     fclose(f);
-    fc.is_valid = false;
-    fc.err_msg = strerror(errno);
+    fc.err = strerror(errno);
 
     fc_dbg("<<", fc);
     return fc;
@@ -111,22 +116,28 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
 
   if (fstat(fileno(f), &s) != 0) {
     fclose(f);
-    fc.is_valid = false;
-    fc.err_msg = strerror(errno);
+    fc.err = strerror(errno);
 
     fc_dbg("<<", fc);
     return fc;
   }
 
+  const size_t sz = ((size_t)s.st_size + 1) * sizeof(char);
+
   /* read full file and close */
-  char *contents_buf = FL_MALLOC(((size_t)s.st_size + 1) * sizeof(char));
+#ifdef FL_ARENA_TYPE
+  char *contents_buf = FL_ALLOC(arena, sz);
+#else
+  char *contents_buf = FL_ALLOC(sz);
+#endif
+
   size_t bytes_read = fread(contents_buf, sizeof(char), (size_t)s.st_size, f);
-  fclose(f);
+
+  fclose(f); /* safe to close as we have read contents into contents_buf */
 
   if (ferror(f)) {
     FL_FREE(contents_buf);
-    fc.is_valid = false;
-    fc.err_msg = "Reading file failed";
+    fc.err = "Reading file failed";
 
     fc_dbg("<<", fc);
     return fc;
@@ -134,8 +145,7 @@ fl_content_t fl_read_file_str(const char *restrict path, const char *restrict mo
 
   contents_buf[bytes_read] = '\0';
 
-  fc.is_valid = true;
-  fc.err_msg = NULL;
+  fc.err = NULL;
   fc.size = bytes_read; /* as contents_buf is truncated with \0 at index bytes_read */
   fc.contents = (void *)contents_buf;
 
@@ -148,18 +158,18 @@ void fc_deinit(fl_content_t fc[const static 1])
   fc_dbg(">>", *fc);
 
   FL_FREE(fc->contents);
+  fc->err = NULL;
   fc->contents = NULL;
   fc->size = 0;
-  fc->is_valid = false;
-  fc->err_msg = NULL;
 
   fc_dbg("<<", *fc);
   return;
 }
 
 #elif defined(_WIN32) || defined(_WIN64)
-/* No support for windows yet */
+_Static_assert(false, "zdx_file.h doesn't support windows yet");
 #else
+_Static_assert(false, "zdx_file.h doesn't support unknown OS yet");
 /* Unsupported OSes */
 #endif
 

@@ -1,6 +1,12 @@
 #include "../zdx_test_utils.h"
 
+#define ZDX_SIMPLE_ARENA_IMPLEMENTATION
+#include "../zdx_simple_arena.h"
+
 #define ZDX_FILE_IMPLEMENTATION
+#define FL_ARENA_TYPE arena_t
+#define FL_ALLOC arena_alloc
+#define FL_FREE(...)
 #include "../zdx_file.h"
 
 #define ZDX_STR_IMPLEMENTATION
@@ -15,6 +21,7 @@ int main(void)
 {
   // ---- START GAP BUFFER TESTS ----
 
+  arena_t arena = arena_create(4 KB);
   gb_t gb = {0};
   char buf_cstr[256] = {0};
   size_t curr_cursor;
@@ -225,9 +232,9 @@ int main(void)
 
     char buf_arr2[] = {'l', 'i', 'n', 'e', ' ', '0', '\n'};
     size_t buf_arr2_sz = sizeof(buf_arr2)/sizeof(buf_arr2[0]);
-    fl_content_t fc = fl_read_file_str("./tests/mocks/simple.txt", "r");
+    fl_content_t fc = fl_read_file(&arena, "./tests/mocks/simple.txt", "r");
 
-    assertm(fc.is_valid, "Expected: valid file contents read from disk, Received: Error: %s", fc.err_msg);
+    assertm(!fc.err, "Expected: valid file contents read from disk, Received: Error: %s", fc.err);
     gb_insert_buf(&gb, fc.contents, fc.size);
     gb_as_cstr(&gb, buf_cstr);
     assertm(strcmp(buf_cstr, (char *)fc.contents) == 0, "Expected: %s, Received: %s", (char *)fc.contents, buf_cstr);
@@ -322,6 +329,8 @@ int main(void)
     gb_deinit(&gb);
   }
   // ---- END GAP BUFFER TESTS ----
+
+  arena_free(&arena);
 
   testlog(L_INFO, "<zdx_gap_buffer_test> All ok!\n");
 }
