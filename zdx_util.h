@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright (c) 2024 Mudit
+ * Copyright (c) 2024 Mudit Ameta
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,7 +73,7 @@ typedef enum {
   L_INFO
 } ZDX_LOG_LEVEL;
 
-#ifdef ZDX_LOG_DISABLE
+#ifdef ZDX_LOGS_DISABLE
 #define log(level, ...)
 #else
 static const char *ZDX_LOG_LEVEL_STR[] = {
@@ -89,6 +89,6 @@ static const char *ZDX_LOG_LEVEL_STR[] = {
     fprintf(stderr, __VA_ARGS__);                               \
     fprintf(stderr, "\n");                                      \
   } while(0)
-#endif // ZDX_LOG_DISABLE
+#endif // ZDX_LOGS_DISABLE
 
 #endif // ZDX_UTIL_H_

@@ -127,7 +127,7 @@ This header contains utility macros and maybe utility functions in the future.
   ```
 - `log(ZDX_LOG_LEVEL, ...args)` - prints logs with given level to `stderr`.
 
-  Logging can be disabled by flag `-DZDX_LOG_DISABLE`.
+  Logging can be disabled by flag `-DZDX_LOGS_DISABLE`.
   ```c
   log(L_INFO, "%d tests passed. All ok!\n", 10);
   ```
