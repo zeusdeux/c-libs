@@ -380,8 +380,8 @@ static json_token_t json_lexer_next_token(json_lexer_t *const lexer)
     token.value = sv_from_buf(&lexer->input->buf[lexer->cursor], 0);
 
     while(true) {
-      // end of input before end of string so return JSON_TOKEN_UNKNOWN
-      if (lexer->cursor >= lexer->input->length) {
+      // end of input before end of string or a new line in a string so return JSON_TOKEN_UNKNOWN
+      if (lexer->cursor >= lexer->input->length || lexer->input->buf[lexer->cursor] == '\n') {
         token.kind = JSON_TOKEN_UNKNOWN;
         token.err = "Expected a closing quote (\")";
         return token;
