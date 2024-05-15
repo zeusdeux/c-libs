@@ -14,6 +14,25 @@ int main(void)
     assertm(sv_eq_cstr(sv, buf_as_cstr), "Expected: \"%s\", Received: "SV_FMT, buf_as_cstr, sv_fmt_args(sv));
   }
 
+  /* sv_begins_with_word_cstr */
+  {
+    sv_t sv = sv_from_cstr("");
+    assertm(!sv_begins_with_word_cstr(sv, " const"), "Expected: false, Received: true");
+    sv = sv_from_cstr("con");
+    assertm(!sv_begins_with_word_cstr(sv, " const"), "Expected: false, Received: true");
+
+    sv = sv_from_cstr("const char *str = \"omg\";");
+    assertm(sv_begins_with_word_cstr(sv, "const"), "Expected: true, Received: false");
+    assertm(!sv_begins_with_word_cstr(sv, " const"), "Expected: false, Received: true");
+    assertm(!sv_begins_with_word_cstr(sv, "const "), "Expected: false, Received: true");
+
+    sv = sv_from_cstr("const");
+    assertm(sv_begins_with_word_cstr(sv, "const"), "Expected: true, Received: false");
+
+    sv = sv_from_cstr("constantinople");
+    assertm(!sv_begins_with_word_cstr(sv, "const"), "Expected: false, Received: true");
+  }
+
   /* sv_trim_left */
   {
     sv_t sv = sv_from_cstr(" \n\r\n\t   hello\n\t  \r\n");
