@@ -57,6 +57,7 @@ bool sv_begins_with_word_buf(sv_t sv, const char *buf, const size_t len);
 bool sv_begins_with_word_cstr(sv_t sv, const char *str);
 bool sv_eq_cstr(sv_t sv, const char *str);
 bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
+bool sv_is_empty(const sv_t sv);
 sv_t sv_trim_left(sv_t sv);
 sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
@@ -158,6 +159,11 @@ bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
   }
 
   return false;
+}
+
+bool sv_is_empty(const sv_t sv)
+{
+  return sv.buf == NULL && sv.length == 0;
 }
 
 sv_t sv_trim_left(sv_t sv)
