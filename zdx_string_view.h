@@ -85,6 +85,7 @@ typedef struct string_view {
   size_t length;
 } sv_t;
 
+
 #define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" (%p) \t| length %zu", \
                               (label), sv_fmt_args(sv), (void *)(sv).buf, (sv).length)
 
@@ -168,7 +169,7 @@ bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
   sv_dbg(">> sv1", sv1);
   sv_dbg(">> sv2", sv1);
 
-  // empty strings
+   // empty strings
   if ((sv1.length + sv2.length) == 0) {
     return true;
   }
