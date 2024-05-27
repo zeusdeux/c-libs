@@ -107,7 +107,6 @@ int main(void)
         "000"
     };
     expected_chunk = sv_split_by_char(&sv, '.');
-    printf("expected "SV_FMT"\n", sv_fmt_args(expected_chunk));
     for (size_t i = 0; expected_chunk.buf; i++) {
       sv_t expected_sv = sv_from_cstr(expected_chunks[i]);
 

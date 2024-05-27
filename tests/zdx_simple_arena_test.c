@@ -425,9 +425,11 @@ int main(void)
       assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
       assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
 
+      arena_reset(&arena);
+
       /* test invalid old size path */
       int *valid = arena_realloc(&arena, NULL, 0, sizeof(int) * 8);
-      c = arena_realloc(&arena, valid, 0, 20);
+      c = arena_realloc(&arena, valid, 0, 20); // this should fail as the pointer is not NULL but old size is invalid (0)
       assertm(c == NULL, "Expected: arena_realloc to fail due to old size being 0, Received: new ptr %p", (void *)c);
       assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
       assertm(arena.offset == sizeof(int) * 8, "Expected: arena offset to be 0, Received: %zu", arena.offset);
