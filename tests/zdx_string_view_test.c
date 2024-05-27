@@ -77,24 +77,54 @@ int main(void)
   /* sv_split_by_char */
   {
     const char *str = "hello, world,\nomg test";
-    sv_t sv = sv_from_cstr(str);
+    sv_t sv;
     sv_t chunk, expected_chunk;
 
+    sv = sv_from_cstr(str);
     chunk = sv_split_by_char(&sv, '|');
-    expected_chunk = sv_from_cstr("");
+    expected_chunk = sv_from_cstr(str);
     assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
-    assertm(sv_eq_cstr(sv, str), "Expected: \"%s\", Received: "SV_FMT, str, sv_fmt_args(sv));
+    assertm(sv_eq_cstr(chunk, str), "Expected: \"%s\", Received: "SV_FMT, str, sv_fmt_args(sv));
 
+    sv = sv_from_cstr(str);
     chunk = sv_split_by_char(&sv, ',');
     expected_chunk = sv_from_cstr("hello");
     assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
-    assertm(sv_eq_cstr(sv, ", world,\nomg test"), "Expected: \", world,\nomg test\", Received: "SV_FMT, sv_fmt_args(sv));
+    assertm(sv_eq_cstr(sv, " world,\nomg test"), "Expected: \", world,\nomg test\", Received: "SV_FMT, sv_fmt_args(sv));
 
     sv = sv_from_cstr("");
     chunk = sv_split_by_char(&sv, ',');
-    expected_chunk = sv_from_cstr("");
-    assertm(sv_eq_sv(chunk, expected_chunk), "Expected: "SV_FMT", Received: "SV_FMT, sv_fmt_args(expected_chunk), sv_fmt_args(chunk));
+    assertm(!chunk.buf, "Expected: buffer addr 0x0 len 0, Received: addr %p len %zu", (void *)chunk.buf, chunk.length);
     assertm(sv_eq_cstr(sv, ""), "Expected: \"\", Received: "SV_FMT, sv_fmt_args(sv));
+
+    sv = sv_from_cstr("abc..123...000");
+    const char *expected_chunks[] = {
+      "abc",
+        "",
+        "123",
+        "",
+        "",
+        "000"
+    };
+    expected_chunk = sv_split_by_char(&sv, '.');
+    printf("expected "SV_FMT"\n", sv_fmt_args(expected_chunk));
+    for (size_t i = 0; expected_chunk.buf; i++) {
+      sv_t expected_sv = sv_from_cstr(expected_chunks[i]);
+
+      // test both sv_split_by_char and sv_eq_cstr
+      assertm(sv_eq_cstr(expected_chunk, expected_chunks[i]),
+              "%zu) (sv_eq_cstr) Expected: '%s', Received: '"SV_FMT"' (buf %p len %zu)",
+              i, expected_chunks[i], sv_fmt_args(expected_chunk), (void *)expected_chunk.buf, expected_chunk.length);
+
+      // test both sv_split_by_char and sv_eq_sv
+      assertm(sv_eq_sv(expected_chunk, expected_sv),
+              "%zu) (sv_eq_sv) "
+              "Expected: '"SV_FMT"' (buf %p len %zu 1st byte %d), Received: '"SV_FMT"' (buf %p len %zu 1st byte %d)",
+              i,
+              sv_fmt_args(expected_sv), (void *)expected_sv.buf, expected_sv.length, *expected_sv.buf,
+              sv_fmt_args(expected_chunk), (void *)expected_chunk.buf, expected_chunk.length, *expected_chunk.buf);
+      expected_chunk = sv_split_by_char(&sv, '.');
+    }
   }
 
   /* sv_split_from_idx (includes idx) */

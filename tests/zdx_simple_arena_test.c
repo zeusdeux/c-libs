@@ -394,6 +394,18 @@ int main(void)
       assertm(c != NULL, "Expected: valid allocated pointer, Received: %p", (void *)c);
       assertm(arena.offset == arena.size, "Expected: arena offset to be %zu, Received: %zu", arena.size, arena.offset);
 
+      arena_reset(&arena);
+
+      /* realloc NULL as ptr should return a valid ptr just like realloc */
+      len = arena.size / 2;
+      c = arena_realloc(&arena, NULL, 0, len);
+      assertm(!arena.err, "Expected: arena_realloc to succeed, Received: arena to have an error %s -> %s", arena.err, strerror(errno));
+      assertm(c != NULL, "Expected: valid ptr, Received: %p", (void *)c);
+      // cuz len is half the size of arena
+      assertm(arena.offset == len, "Expected: offset %zu, Received: offset %zu", len, arena.offset);
+
+      arena_reset(&arena);
+
       assertm(arena_free(&arena) && !arena.err,
               "Expected: arena free to work, Received: %s -> %s", arena.err,  strerror(errno));
 
@@ -414,10 +426,11 @@ int main(void)
       assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
 
       /* test invalid old size path */
-      c = arena_realloc(&arena, c, 0, 10);
+      int *valid = arena_realloc(&arena, NULL, 0, sizeof(int) * 8);
+      c = arena_realloc(&arena, valid, 0, 20);
       assertm(c == NULL, "Expected: arena_realloc to fail due to old size being 0, Received: new ptr %p", (void *)c);
       assertm(arena.err, "Expected: arena to have an error %s -> %s, Received: %s", arena.err, strerror(errno), arena.err);
-      assertm(arena.offset == 0, "Expected: arena offset to be 0, Received: %zu", arena.offset);
+      assertm(arena.offset == sizeof(int) * 8, "Expected: arena offset to be 0, Received: %zu", arena.offset);
 
       arena_reset(&arena);
 

@@ -40,7 +40,7 @@
 #define zdx_first_arg(first, ...) (first)
 
 // Array macros. Check for false-y values of (arr) BEFORE calling these. Use zdx_truthy() for e.g.
-#define zdx_el_sz(arr) sizeof((arr)[0])
+#define zdx_el_sz(arr) sizeof(*(arr))
 #define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
 #define assertm(cond, ...)                                                                                \
@@ -53,7 +53,8 @@
           abort())
 
 #define bail(...) do {                          \
-    log(L_ERROR, __VA_ARGS__);                  \
+    fprintf(stderr, __VA_ARGS__);               \
+    fprintf(stderr, "\n");                      \
     exit(EXIT_FAILURE);                         \
   } while(0)
 

@@ -58,6 +58,7 @@ bool sv_begins_with_word_cstr(sv_t sv, const char *str);
 bool sv_eq_cstr(sv_t sv, const char *str);
 bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
 bool sv_is_empty(const sv_t sv);
+bool sv_has_char(const sv_t sv1, const char c);
 sv_t sv_trim_left(sv_t sv);
 sv_t sv_trim_right(sv_t sv);
 sv_t sv_trim(sv_t sv);
@@ -84,12 +85,14 @@ typedef struct string_view {
   size_t length;
 } sv_t;
 
-#define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" \t| length %zu", (label), sv_fmt_args(sv), (sv).length)
-#define sv_assert_validity(sv) {                                                                           \
-    SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf);  \
-    SV_ASSERT((sv).length >= 0, "Expected: positive length string view, Received: %zu", (sv).length);  \
-  } while(0)
 
+#define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" (%p) \t| length %zu", \
+                              (label), sv_fmt_args(sv), (void *)(sv).buf, (sv).length)
+
+#define sv_assert_validity(sv) {                                                                          \
+    SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf); \
+    SV_ASSERT((sv).length >= 0, "Expected: positive length string view, Received: %zu", (sv).length);     \
+  } while(0)
 
 sv_t sv_from_buf(const char* buf, const size_t len)
 {
@@ -141,21 +144,49 @@ bool sv_begins_with_word_cstr(sv_t sv, const char *str)
 
 bool sv_eq_cstr(sv_t sv, const char *str)
 {
+  sv_dbg(">>", sv);
+  dbg(">> str %s len %zu", str, strlen(str));
+
   sv_assert_validity(sv);
 
   const size_t input_str_len = strlen(str);
 
-  if (input_str_len == sv.length && memcmp(sv.buf, str, sv.length) == 0) {
+  // empty strings
+  if ((input_str_len + sv.length) == 0) {
+    return true;
+  }
+
+  if (input_str_len == sv.length && *sv.buf == *str && memcmp(sv.buf, str, sv.length) == 0) {
+    return true;
+  }
+
+  dbg("<<");
+  return false;
+}
+
+bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
+{
+  sv_dbg(">> sv1", sv1);
+  sv_dbg(">> sv2", sv1);
+
+   // empty strings
+  if ((sv1.length + sv2.length) == 0) {
+    return true;
+  }
+
+  if (sv1.length == sv2.length && *sv1.buf == *sv2.buf && memcmp(sv1.buf, sv2.buf, sv1.length) == 0) {
     return true;
   }
 
   return false;
 }
 
-bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
+bool sv_has_char(const sv_t sv, const char c)
 {
-  if (sv1.length == sv2.length && memcmp(sv1.buf, sv2.buf, sv1.length) == 0) {
-    return true;
+  for (size_t i = 0; i < sv.length; i++) {
+    if (sv.buf[i] == c) {
+      return true;
+    }
   }
 
   return false;
@@ -207,25 +238,46 @@ sv_t sv_trim(sv_t sv)
   return sv_trim_right(sv_trim_left(sv));
 }
 
+/**
+ * Example usage:
+ * sv_t sv = sv_from_cstr("abc..123...000");
+ * sv_t isv = {0};
+ * do {
+ *   isv = sv_split_by_char(&sv, '.');
+ *   printf("ret: "SV_FMT" (%zu) remaining: "SV_FMT" (%zu)\n", sv_fmt_args(isv), isv.length, sv_fmt_args(sv), sv.length);
+ * } while(isv.buf);
+ *
+ * Output: abc -> "" -> 123 -> "" -> "" -> 000 -> tombstone (which is (sv_t){ .buf = NULL, .length = 0 })
+ */
 sv_t sv_split_by_char(sv_t *const sv, char delim)
 {
   sv_dbg(">>", *sv);
   dbg(">> delimiter '%c'", delim);
   sv_assert_validity(*sv);
 
-  sv_t split = { .buf = sv->buf, .length = 0 };
+  sv_t split = {0};
+
+  // sv being split is empty. Return this tombstone where split.buf = NULL and split.length = 0
+  if (sv->length <= 0) {
+    return split;
+  }
+
+  split = (sv_t){ .buf = sv->buf, .length = 0 };
+  bool found_delim = false;
 
   for (size_t i = 0; i < sv->length; i++) {
+    split.length++;
     if (sv->buf[i] == delim) {
-      sv->buf = sv->buf + i;
-      sv->length = sv->length - i;
-
-      split.length = i;
-
-      sv_dbg("<< updated input", *sv);
-      sv_dbg("<< split chunk", split);
-      return split;
+      found_delim = true;
+      break;
     }
+  }
+
+  sv->buf = sv->buf + split.length;
+  sv->length = sv->length - split.length;
+
+  if (found_delim) {
+    split.length--;
   }
 
   sv_dbg("<<", split);
