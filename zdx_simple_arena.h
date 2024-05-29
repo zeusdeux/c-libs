@@ -411,8 +411,9 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 
   /*
    * not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS
-   * unless DEBUG is set as arena_create() memset's the whole arena to 0xcd in DEBUG mode
-   * and this function is guarded for those OS-es
+   * unless DEBUG is set as arena_create() memset's the whole arena to 0 in DEBUG mode as arena_create()
+   * in debug mode memset's the whole arena to SA_DEBUG_BYTE which is 0xcd by default. If we don't memset to 0
+   * functions that rely on arena_calloc zero-ing memory, will fail in DEBUG mode.
    */
 #if defined(DEBUG)
   memset(ptr, 0, total_size);
