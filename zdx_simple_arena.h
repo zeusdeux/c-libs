@@ -51,6 +51,7 @@ typedef struct Arena {
 } arena_t;
 
 arena_t arena_create(const size_t sz);
+arena_t arena_create_from_buf(void *const buf, const size_t sz);
 bool arena_free(arena_t *const ar);
 bool arena_reset(arena_t *const ar);
 void *arena_alloc(arena_t *const ar, const size_t sz);
@@ -86,7 +87,8 @@ typedef enum {
   ARENA_ENOMEM = 0,
   ARENA_EINVAL,
   ARENA_EACQFAIL,
-  ARENA_ERELFAIL
+  ARENA_ERELFAIL,
+  ARENA_ERR_CODE_COUNT,
 } arena_err_code_t;
 
 
@@ -187,6 +189,47 @@ arena_t arena_create(size_t sz)
 #endif
 
   ar.size = sz;
+
+  ar_dbg("<<", &ar);
+  return ar;
+}
+
+/*
+ * DESCRIPTION
+ *
+ * This function creates an arena with the provided buffer as the backing memory of size sz.
+ *
+ * RETURN VALUES
+ *
+ * Success: It returns an arena that will allocate into the buffer that was provided until size sz.
+ * Error: If buffer is NULL or if size is 0, arena.err will be populated with ARENA_EINVAL message
+ *
+ * NOTES
+ *
+ * If DEBUG is defined, then the whole arena is also memset to SA_DEBUG_BYTE which is
+ * 0xcd by default to help with debugging.
+ */
+arena_t arena_create_from_buf(void *const buf, const size_t sz)
+{
+  dbg(">> provided buffer %p (size = %zu)", buf, sz);
+
+  arena_t ar = {0};
+
+  if (!buf || !sz) {
+    ar.err = arena_get_err_msg_(ARENA_EINVAL);
+    ar.arena = NULL;
+
+    ar_dbg("<<", &ar);
+    return ar;
+  }
+
+  ar.arena = buf;
+  ar.size = sz;
+
+#if defined(DEBUG)
+  memset(ar.arena, SA_DEBUG_BYTE, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
+#endif
+
 
   ar_dbg("<<", &ar);
   return ar;
