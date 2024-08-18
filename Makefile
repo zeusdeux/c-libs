@@ -7,6 +7,8 @@ DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
 
 tags:
 	@etags /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/**/*.h ./*.h ./**/*.c
+	@find -E `pwd` -type f -regex ".+\.(c|h)$ " > cscope.files # the <space> after "$" in the regex is because make throws an error saying missing double quote `"` after `$` otherwise. Idk why
+	@cscope -b -q
 
 test_zdx_da:
 	@echo "--- Running tests on zdx_da.h release ---"
