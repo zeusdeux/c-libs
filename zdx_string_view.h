@@ -42,11 +42,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/**
- * opaque type as we don't want any consumers to directly initialize this
- * struct but rather only consume it from one of the functions below
- **/
-typedef struct string_view sv_t;
+typedef struct string_view {
+  const char *buf;
+  size_t length;
+} sv_t;
 
 #define SV_FMT "%.*s"
 #define sv_fmt_args(sv) (int)(sv).length, (sv).buf
@@ -66,7 +65,7 @@ sv_t sv_split_by_char(sv_t *const sv, char delim);
 sv_t sv_split_from_idx(sv_t *const sv, const size_t from); /* including idx from */
 sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx until */
 
-#endif // ZDX_STRING_VIEW_H_
+// ----------------------------------------------------------------------------------------------------------------
 
 #ifdef ZDX_STRING_VIEW_IMPLEMENTATION
 
@@ -80,12 +79,6 @@ sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx un
 #define SV_ASSERT assertm
 #endif // SV_ASSERT
 
-typedef struct string_view {
-  const char *buf;
-  size_t length;
-} sv_t;
-
-
 #define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" (%p) \t| length %zu", \
                               (label), sv_fmt_args(sv), (void *)(sv).buf, (sv).length)
 
@@ -96,8 +89,9 @@ typedef struct string_view {
 
 sv_t sv_from_buf(const char* buf, const size_t len)
 {
-  dbg(">> buf %.*s", (int)len, buf);
   SV_ASSERT(buf != NULL, "Expected: input buffer to be not-NULL, Received: %p", (void *)buf);
+
+  dbg(">> buf \"%.*s\" (buf = %p, len = %zu)", (int)len, buf, (void *)buf, len)
 
   sv_t sv = {
     .buf = buf,
@@ -125,6 +119,7 @@ bool sv_begins_with_word_buf(sv_t sv, const char *buf, const size_t len)
 {
   sv_dbg("<<", sv);
   sv_assert_validity(sv);
+  SV_ASSERT(buf != NULL, "Expected: input buffer to be not-NULL, Received: %p", (void *)buf);
 
   if (len > sv.length) {
     return false;
@@ -145,22 +140,26 @@ bool sv_begins_with_word_cstr(sv_t sv, const char *str)
 bool sv_eq_cstr(sv_t sv, const char *str)
 {
   sv_dbg(">>", sv);
-  dbg(">> str %s len %zu", str, strlen(str));
 
   sv_assert_validity(sv);
+  SV_ASSERT(str != NULL, "Expected: input string to be not-NULL, Received: %p", (void *)str);
+
+  dbg(">> match with %s", str);
 
   const size_t input_str_len = strlen(str);
 
   // empty strings
   if ((input_str_len + sv.length) == 0) {
+    dbg("<< true");
     return true;
   }
 
   if (input_str_len == sv.length && *sv.buf == *str && memcmp(sv.buf, str, sv.length) == 0) {
+    dbg("<< true");
     return true;
   }
 
-  dbg("<<");
+  dbg("<< false");
   return false;
 }
 
@@ -341,3 +340,4 @@ sv_t sv_split_until_idx(sv_t *const sv, const size_t until) /* excluding index (
 }
 
 #endif // ZDX_STRING_VIEW_IMPLEMENTATION
+#endif // ZDX_STRING_VIEW_H_
