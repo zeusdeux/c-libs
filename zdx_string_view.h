@@ -33,7 +33,7 @@
  *   first split chunk and also updates the incoming sv_t value to point
  *   after the chunk that was split out.
  *
- * THIS LIBRARY SHOULD NEVER DEPEND ON ANY OTHER!
+ * THIS LIBRARY SHOULD NEVER DEPEND ON ANY OTHER EXCEPT STANDARD LIBS!
  * IT SHOULD BE FULLY SELF-SUFFICIENT TO BE ATOMIC!
  *   Serving these properties lets us rely on this library as a
  *   building block library.

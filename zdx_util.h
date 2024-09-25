@@ -22,7 +22,14 @@
  * SOFTWARE.
  *
  */
-
+/**
+ * THIS LIBRARY SHOULD NEVER DEPEND ON ANY OTHER EXCEPT STANDARD LIBS!
+ * IT SHOULD BE FULLY SELF-SUFFICIENT TO BE ATOMIC!
+ *   Serving these properties lets us rely on this library as a
+ *   building block library.
+ *
+ * Keep it simple!
+ */
 #ifndef ZDX_UTIL_H_
 #define ZDX_UTIL_H_
 
