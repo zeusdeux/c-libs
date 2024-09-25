@@ -43,6 +43,7 @@
 #define zdx_el_sz(arr) sizeof(*(arr))
 #define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
+#if defined(DEBUG) || !defined(ZDX_ASSERT_DISABLE)
 #define assertm(cond, ...)                                                                                \
   (cond) ?                                                                                                \
          ((void)0)                                                                                        \
@@ -51,6 +52,9 @@
           fprintf(stderr, __VA_ARGS__),                                                                   \
           fprintf(stderr, "\n"),                                                                          \
           abort())
+#else
+#define assertm(...)
+#endif
 
 #define bail(...) do {                          \
     fprintf(stderr, __VA_ARGS__);               \
