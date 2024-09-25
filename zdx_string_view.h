@@ -25,19 +25,33 @@
 
 /**
  * THIS LIBRARY SHOULD NEVER ALLOCATE!
- * It should only provide readonly views of the underlying buffer.
- * Also, it should use only automatic storage so no pointers
- * should be passed in to any functions unless the function needs to
- * "return" multiple values by side effecting the incoming
- * string_view value - for e.g., sv_split_by_char that returns the
- * first split chunk and also updates the incoming sv_t value to point
- * after the chunk that was split out.
+ *   It should only provide readonly views of the underlying buffer.
+ *   Also, it should use only automatic storage so no pointers
+ *   should be passed in to any functions unless the function needs to
+ *   "return" multiple values by side effecting the incoming
+ *   string_view value - for e.g., sv_split_by_char that returns the
+ *   first split chunk and also updates the incoming sv_t value to point
+ *   after the chunk that was split out.
+ *
+ * THIS LIBRARY SHOULD NEVER DEPEND ON ANY OTHER!
+ * IT SHOULD BE FULLY SELF-SUFFICIENT TO BE ATOMIC!
+ *   Serving these properties lets us rely on this library as a
+ *   building block library.
+ *
  * Keep it simple!
  */
 #ifndef ZDX_STRING_VIEW_H_
 #define ZDX_STRING_VIEW_H_
 
 #pragma GCC diagnostic error "-Wsign-conversion"
+
+#ifndef SV_API
+#define SV_API
+#endif // SV_API
+
+#ifndef SV_ASSERT
+#define SV_ASSERT assertm
+#endif // SV_ASSERT
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -50,20 +64,20 @@ typedef struct string_view {
 #define SV_FMT "%.*s"
 #define sv_fmt_args(sv) (int)(sv).length, (sv).buf
 
-sv_t sv_from_buf(const char* buf, const size_t len);
-sv_t sv_from_cstr(const char* str);
-bool sv_begins_with_word_buf(sv_t sv, const char *buf, const size_t len);
-bool sv_begins_with_word_cstr(sv_t sv, const char *str);
-bool sv_eq_cstr(sv_t sv, const char *str);
-bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
-bool sv_is_empty(const sv_t sv);
-bool sv_has_char(const sv_t sv1, const char c);
-sv_t sv_trim_left(sv_t sv);
-sv_t sv_trim_right(sv_t sv);
-sv_t sv_trim(sv_t sv);
-sv_t sv_split_by_char(sv_t *const sv, char delim);
-sv_t sv_split_from_idx(sv_t *const sv, const size_t from); /* including idx from */
-sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx until */
+SV_API sv_t sv_from_buf(const char buf[const static 1], const size_t len);
+SV_API sv_t sv_from_cstr(const char str[const static 1]);
+SV_API bool sv_begins_with_word_buf(sv_t sv, const char buf[const static 1], const size_t len);
+SV_API bool sv_begins_with_word_cstr(sv_t sv, const char str[const static 1]);
+SV_API bool sv_eq_cstr(sv_t sv, const char str[const static 1]);
+SV_API bool sv_eq_sv(const sv_t sv1, const sv_t sv2);
+SV_API bool sv_is_empty(const sv_t sv);
+SV_API bool sv_has_char(const sv_t sv1, const char c);
+SV_API sv_t sv_trim_left(sv_t sv);
+SV_API sv_t sv_trim_right(sv_t sv);
+SV_API sv_t sv_trim(sv_t sv);
+SV_API sv_t sv_split_by_char(sv_t sv[const static 1], char delim);
+SV_API sv_t sv_split_from_idx(sv_t sv[const static 1], const size_t from); /* including index (from) */
+SV_API sv_t sv_split_until_idx(sv_t sv[const static 1], const size_t until); /* excluding index (until) */
 
 // ----------------------------------------------------------------------------------------------------------------
 
@@ -73,11 +87,6 @@ sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx un
 #include <string.h>
 #include "./zdx_util.h"
 
-/* These defines should only be overriden in the file */
-/* that includes the implementation */
-#ifndef SV_ASSERT
-#define SV_ASSERT assertm
-#endif // SV_ASSERT
 
 #define sv_dbg(label, sv) dbg("%s buf \""SV_FMT"\" (%p) \t| length %zu", \
                               (label), sv_fmt_args(sv), (void *)(sv).buf, (sv).length)
@@ -87,11 +96,11 @@ sv_t sv_split_until_idx(sv_t *const sv, const size_t until); /* excluding idx un
     SV_ASSERT((sv).length >= 0, "Expected: positive length string view, Received: %zu", (sv).length);     \
   } while(0)
 
-sv_t sv_from_buf(const char* buf, const size_t len)
+SV_API sv_t sv_from_buf(const char buf[const static 1], const size_t len)
 {
   SV_ASSERT(buf != NULL, "Expected: input buffer to be not-NULL, Received: %p", (void *)buf);
 
-  dbg(">> buf \"%.*s\" (buf = %p, len = %zu)", (int)len, buf, (void *)buf, len)
+  dbg(">> buf \"%.*s\" (buf = %p, len = %zu)", (int)len, buf, (void *)buf, len);
 
   sv_t sv = {
     .buf = buf,
@@ -102,8 +111,10 @@ sv_t sv_from_buf(const char* buf, const size_t len)
   return sv;
 }
 
-sv_t sv_from_cstr(const char* str)
+SV_API sv_t sv_from_cstr(const char str[const static 1])
 {
+  SV_ASSERT(str != NULL, "Expected: input cstr to be not-NULL, Received: %p", (void *)str);
+
   dbg(">> cstr \"%s\"", str);
 
   sv_t sv = {
@@ -115,7 +126,7 @@ sv_t sv_from_cstr(const char* str)
   return sv;
 }
 
-bool sv_begins_with_word_buf(sv_t sv, const char *buf, const size_t len)
+SV_API bool sv_begins_with_word_buf(sv_t sv, const char buf[const static 1], const size_t len)
 {
   sv_dbg("<<", sv);
   sv_assert_validity(sv);
@@ -132,12 +143,16 @@ bool sv_begins_with_word_buf(sv_t sv, const char *buf, const size_t len)
   return false;
 }
 
-bool sv_begins_with_word_cstr(sv_t sv, const char *str)
+SV_API bool sv_begins_with_word_cstr(sv_t sv, const char str[const static 1])
 {
+  SV_ASSERT(str != NULL, "Expected: input cstr to be not-NULL, Received: %p", (void *)str);
+
+  dbg(">> cstr \"%s\"", str);
+
   return sv_begins_with_word_buf(sv, str, strlen(str));
 }
 
-bool sv_eq_cstr(sv_t sv, const char *str)
+SV_API bool sv_eq_cstr(sv_t sv, const char str[const static 1])
 {
   sv_dbg(">>", sv);
 
@@ -163,7 +178,7 @@ bool sv_eq_cstr(sv_t sv, const char *str)
   return false;
 }
 
-bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
+SV_API bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
 {
   sv_dbg(">> sv1", sv1);
   sv_dbg(">> sv2", sv1);
@@ -180,7 +195,7 @@ bool sv_eq_sv(const sv_t sv1, const sv_t sv2)
   return false;
 }
 
-bool sv_has_char(const sv_t sv, const char c)
+SV_API bool sv_has_char(const sv_t sv, const char c)
 {
   for (size_t i = 0; i < sv.length; i++) {
     if (sv.buf[i] == c) {
@@ -191,12 +206,12 @@ bool sv_has_char(const sv_t sv, const char c)
   return false;
 }
 
-bool sv_is_empty(const sv_t sv)
+SV_API bool sv_is_empty(const sv_t sv)
 {
   return sv.buf == NULL && sv.length == 0;
 }
 
-sv_t sv_trim_left(sv_t sv)
+SV_API sv_t sv_trim_left(sv_t sv)
 {
   sv_dbg(">>", sv);
   sv_assert_validity(sv);
@@ -213,7 +228,7 @@ sv_t sv_trim_left(sv_t sv)
   sv_dbg("<<", sv);
 }
 
-sv_t sv_trim_right(sv_t sv)
+SV_API sv_t sv_trim_right(sv_t sv)
 {
   sv_dbg(">>", sv);
   sv_assert_validity(sv);
@@ -232,7 +247,7 @@ sv_t sv_trim_right(sv_t sv)
   return sv;
 }
 
-sv_t sv_trim(sv_t sv)
+SV_API sv_t sv_trim(sv_t sv)
 {
   return sv_trim_right(sv_trim_left(sv));
 }
@@ -248,7 +263,7 @@ sv_t sv_trim(sv_t sv)
  *
  * Output: abc -> "" -> 123 -> "" -> "" -> 000 -> tombstone (which is (sv_t){ .buf = NULL, .length = 0 })
  */
-sv_t sv_split_by_char(sv_t *const sv, char delim)
+SV_API sv_t sv_split_by_char(sv_t sv[const static 1], char delim)
 {
   sv_dbg(">>", *sv);
   dbg(">> delimiter '%c'", delim);
@@ -283,7 +298,7 @@ sv_t sv_split_by_char(sv_t *const sv, char delim)
   return split;
 }
 
-sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including index (from) */
+SV_API sv_t sv_split_from_idx(sv_t sv[const static 1], const size_t from) /* including index (from) */
 {
   sv_dbg(">>", *sv);
   dbg(">> split from index %zu", from);
@@ -311,7 +326,7 @@ sv_t sv_split_from_idx(sv_t *const sv, const size_t from) /* including index (fr
   return split;
 }
 
-sv_t sv_split_until_idx(sv_t *const sv, const size_t until) /* excluding index (until) */
+SV_API sv_t sv_split_until_idx(sv_t sv[const static 1], const size_t until) /* excluding index (until) */
 {
   sv_dbg(">>", *sv);
   dbg(">> split until index %zu", until);
