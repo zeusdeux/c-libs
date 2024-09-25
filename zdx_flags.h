@@ -183,7 +183,7 @@ flag_value_t flags_get(flags_t flags[const static 1], flag_option_t option)
         } break;
 
         default: {
-          assertm(false, "Invalid flag type %d", option.type);
+          dbg("<< Invalid flag type %d", option.type);
 
           return (flag_value_t){
             .err = err_create("Invalid flag type")
@@ -214,9 +214,9 @@ flag_value_t flags_get(flags_t flags[const static 1], flag_option_t option)
   };
 }
 
-void flags_deinit(flags_t parsed[const static 1])
+void flags_deinit(flags_t flags[const static 1])
 {
-  da_deinit(parsed);
+  da_deinit(flags);
 }
 
 void flag_value_deinit(flag_value_t flag[const static 1])

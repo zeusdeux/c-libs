@@ -116,7 +116,7 @@ void test(test_input_t input)
   assertm_flag_values_eq(profile_id, input.profile_id);
 
   flag_value_deinit(&service); // deinit the FLAG_TYPE_STRING_ARRAY as it's returned as a dynamic array
-  flag_value_deinit(&user); // this is a noop as user if FLAG_TYPE_STRING and thus passed by value
+  flag_value_deinit(&user); // this is a noop as user if FLAG_TYPE_STRING and thus the result (stored in user) is returned by value
   flags_deinit(&flags); // flags (parse result) is a dynamic array and hence needs to be deinit
 
   testlog(L_INFO, "------------------------------------------------------------");
@@ -432,6 +432,23 @@ int main(void)
 
   for (size_t i = 0; i < zdx_arr_len(inputs); i++) {
     test(inputs[i]);
+  }
+
+  // Invalid flag type error test
+  {
+    flags_t flags = {0};
+    char *argv[] = {"prg-name", "--debug"};
+
+    flags_parse(&flags, 2, argv);
+    flag_value_t unknown = flags_get(&flags, (flag_option_t){
+        .name = "debug",
+        .alias = "d",
+        .type = 100
+      });
+    assertm(sv_eq_cstr((unknown).err.msg, "Invalid flag type"),
+            "Expected: \"Invalid flag type\", Received: \""SV_FMT"\"",
+            sv_fmt_args((unknown).err.msg));
+    flags_deinit(&flags);
   }
 
   testlog(L_INFO, "<zdx_flags_test> All ok!\n");
