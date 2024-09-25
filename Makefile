@@ -112,10 +112,21 @@ test_zdx_hashtable_dbg:
 	@echo "--- Checking for memory leaks in zdx_hashtable.h with calloc(3) ---"
 	@[ -z "${CI}" ] && leaks --quiet --atExit -- ./tests/zdx_hashtable_without_arena_test
 
+test_zdx_flags:
+	@echo "--- Running tests on zdx_flags.h release ---"
+	@clang $(TEST_FLAGS) ./tests/zdx_flags_test.c -o ./tests/zdx_flags_test && ./tests/zdx_flags_test
+	@echo "--- Checking for memory leaks in zdx_flags.h ---"
+	@[ -z "${CI}" ] && ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit 2>/dev/null -- ./tests/zdx_flags_test
 
-test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena test_zdx_hashtable
+test_zdx_flags_dbg:
+	@echo "--- Running tests on zdx_flags.h debug ---"
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_flags_test.c -o ./tests/zdx_flags_test_dbg && ./tests/zdx_flags_test_dbg
+	@echo "--- Checking for memory leaks in zdx_flags.h ---"
+	@[ -z "${CI}" ] && leaks --atExit -- ./tests/zdx_flags_test_dbg
 
-test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg test_zdx_simple_arena_dbg test_zdx_hashtable_dbg
+test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena test_zdx_hashtable test_zdx_flags
+
+test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg test_zdx_simple_arena_dbg test_zdx_hashtable_dbg test_zdx_flags_dbg
 
 clean:
 	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
