@@ -112,7 +112,17 @@ static void gpa_deinit(void *ctx)
 
 /**
  * GPA = General Purpose Allocator
- * This function initializes a malloc and friends based general purpose allocator
+ *   This function initializes a malloc and friends based general purpose allocator
+ *
+ * Example:
+ *   mem_allocator_t gpa = mem_gpa_init("test");
+ *   int *a = gpa.alloc(gpa.ctx, sizeof(*a) * 10);
+ *   ...
+ *   ...
+ *   gpa.free(gpa.ctx, a);
+ *   ...
+ *   ...
+ *   gpa.deinit(gpa.ctx);
  */
 MEM_API mem_allocator_t mem_gpa_init(const char name[const static 1])
 {
