@@ -66,8 +66,9 @@ typedef struct {
 
 static void *gpa_malloc(void *ctx, const size_t sz)
 {
+  (void) ctx;
   MEM_ASSERT_NONNULL(ctx);
-  dbg(">> [allocator "SV_FMT"]: %zu", sv_fmt_args(((gpa_context_t *)ctx)->name), sz);
+  dbg(">> [allocator "SV_FMT"]: size = %zu", sv_fmt_args(((gpa_context_t *)ctx)->name), sz);
 
   void *ptr = malloc(sz);
 
@@ -77,23 +78,38 @@ static void *gpa_malloc(void *ctx, const size_t sz)
 
 static void *gpa_calloc(void *ctx, const size_t count, const size_t sz)
 {
-  MEM_ASSERT_NONNULL(ctx);
   (void) ctx;
-  return calloc(count, sz);
+  MEM_ASSERT_NONNULL(ctx);
+  dbg(">> [allocator "SV_FMT"]: count = %zu, size = %zu",
+      sv_fmt_args(((gpa_context_t *)ctx)->name), count, sz);
+
+  void *ptr = calloc(count, sz);
+
+  dbg("<< [allocator "SV_FMT"]: %p", sv_fmt_args(((gpa_context_t *)ctx)->name), ptr);
+  return ptr;
 }
 
 static void *gpa_realloc(void *ctx, void *ptr, const size_t old_sz, const size_t new_sz)
 {
-  MEM_ASSERT_NONNULL(ctx);
   (void) ctx;
   (void) old_sz;
-  return realloc(ptr, new_sz);
+  MEM_ASSERT_NONNULL(ctx);
+  dbg(">> [allocator "SV_FMT"]: ptr = %p, old size = %zu, new size = %zu",
+      sv_fmt_args(((gpa_context_t *)ctx)->name), ptr, old_sz, new_sz);
+
+  void *new_ptr = realloc(ptr, new_sz);
+
+  dbg("<< [allocator "SV_FMT"]: realloced ptr = %p", sv_fmt_args(((gpa_context_t *)ctx)->name), new_ptr);
+  return new_ptr;
 }
 
 static void gpa_free(void *ctx, void *ptr)
 {
-  MEM_ASSERT_NONNULL(ctx);
   (void) ctx;
+  MEM_ASSERT_NONNULL(ctx);
+  dbg(">> [allocator "SV_FMT"]: ptr = %p", sv_fmt_args(((gpa_context_t *)ctx)->name), ptr);
+
+  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(((gpa_context_t *)ctx)->name));
   free(ptr);
 }
 
@@ -106,7 +122,19 @@ static void gpa_empty(void *ctx)
 static void gpa_deinit(void *ctx)
 {
   MEM_ASSERT_NONNULL(ctx);
+  dbg(">> [allocator "SV_FMT"]", sv_fmt_args(((gpa_context_t *)ctx)->name));
+
+  gpa_context_t *gpa_ctx = ctx;
+  sv_t name = gpa_ctx->name;
+
   gpa_free(ctx, ctx); // ctx is both the ctx and the pointer we want freed
+
+  // reset the name string view. If it holds a dynamically allocated pointer,
+  // it's whoever allocated it that needs to free it as string view never
+  // allocates and is only a readonly view on the buffer pointer it holds.
+  gpa_ctx->name = (sv_t){0};
+
+  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(name));
   return;
 }
 
@@ -127,11 +155,14 @@ static void gpa_deinit(void *ctx)
 MEM_API mem_allocator_t mem_gpa_init(const char name[const static 1])
 {
   MEM_ASSERT_NONNULL((void *)name);
+  dbg(">> name = %s", name);
+
   const gpa_context_t gla_default_ctx = { .name = {"Default", 7} };
 
   gpa_context_t *ctx = gpa_malloc((void *)&gla_default_ctx, sizeof(*ctx));
   ctx->name = sv_from_cstr(name);
 
+  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(ctx->name));
   return (mem_allocator_t){
     .ctx = ctx,
     .alloc = gpa_malloc,
