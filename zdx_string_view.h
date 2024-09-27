@@ -94,7 +94,7 @@ SV_API sv_t sv_split_until_idx(sv_t sv[const static 1], const size_t until); /* 
 #define sv_assert_validity(sv) {                                                                          \
     SV_ASSERT((sv).buf != NULL, "Expected: non-NULL buf in string view, Received: %p", (void *)(sv).buf); \
     SV_ASSERT((sv).length >= 0, "Expected: positive length string view, Received: %zu", (sv).length);     \
-  } while(0)
+  } while(0); /* <- this semicolon is to silence the empty while loop body when SV_ASSERT is not defined */
 
 SV_API sv_t sv_from_buf(const char buf[const static 1], const size_t len)
 {
