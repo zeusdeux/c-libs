@@ -128,14 +128,14 @@ static void gpa_deinit(void *ctx)
   sv_t name = gpa_ctx->name;
   (void) name;
 
-  gpa_free(ctx, ctx); // ctx is both the ctx and the pointer we want freed
+  gpa_ctx->name = (sv_t){0};
+  free(ctx);
 
   // reset the name string view. If it holds a dynamically allocated pointer,
   // it's whoever allocated it that needs to free it as string view never
   // allocates and is only a readonly view on the buffer pointer it holds.
-  gpa_ctx->name = (sv_t){0};
 
-  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(name));
+  dbg("<< [allocator "SV_FMT"] Destroyed!", sv_fmt_args(name));
   return;
 }
 
