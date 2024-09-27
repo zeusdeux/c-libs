@@ -126,6 +126,7 @@ static void gpa_deinit(void *ctx)
 
   gpa_context_t *gpa_ctx = ctx;
   sv_t name = gpa_ctx->name;
+  (void) name;
 
   gpa_free(ctx, ctx); // ctx is both the ctx and the pointer we want freed
 
