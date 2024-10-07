@@ -4,6 +4,14 @@
 
 ## Usage
 
+> Note: DO NOT EVER BUILD DYNAMIC OR STATIC LIBS FOR ANY OF THE SINGLE HEADER LIBS
+> Always build these single header libs from source in whatever project uses them
+> as correctness of code in this libs is done via asserts which are normally
+> turned off for release builds (via -DZDX_ASSERT_DISABLE) and only enabled in DEBUG builds
+> and thus if packaged as a dynamic or static library which means it's likely built in release mode
+> all the asserts will be removed and the consumers of the library will have no protection
+> against bad usage of the functions in that dynamic or static library
+
 To use any library in this repository:
 
 1. copy the header file into your project - for e.g., copy `zdx_da.h`

@@ -1,8 +1,8 @@
 DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
-FLAGS = -std=c17 -Wall -pedantic -O3
+FLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wdeprecated -Werror -pedantic -O3 -g
 TEST_FLAGS = $(FLAGS)
 
-DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -fsanitize=address,undefined
+DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror -fsanitize=address,undefined
 DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
 
 tags:

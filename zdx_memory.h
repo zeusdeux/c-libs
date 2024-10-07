@@ -5,7 +5,16 @@
 #define MEM_API
 #endif // MEM_API
 
+#ifdef ZDX_MEMORY_IMPLEMENTATION_AUTO
+#  define ZDX_STRING_VIEW_IMPLEMENTATION
+#  define ZDX_MEMORY_IMPLEMENTATION
+#endif // ZDX_MEMORY_IMPLEMENTATION_AUTO
+
 #include <stddef.h>
+#include "zdx_string_view.h"
+#include "zdx_util.h"
+
+typedef struct mem_allocator_t mem_allocator_t;
 
 /**
  * To understand function pointers -
@@ -14,23 +23,24 @@
  *                                                    come together to make the return type of
  *                                                    signal be a function void (*)(int) aka
  *                                                    SignalHandler below.
- * ^^^^^^ is the same as below
+ * ^^^^^^ is the same as below:
  * typedef void (*SignalHandler)(int signum);
  * extern SignalHandler signal(int signum, SignalHandler handler);
  */
 
-typedef void* (*mem_malloc_fn_t)(void *ctx, const size_t sz);
-typedef void* (*mem_calloc_fn_t)(void *ctx, const size_t count, const size_t sz);
-typedef void* (*mem_realloc_fn_t)(void *ctx, void *ptr, const size_t old_sz, const size_t new_sz);
-typedef void  (*mem_free_fn_t)(void *ctx, void *ptr);
-typedef void  (*mem_empty_fn_t)(void *ctx);
+typedef void* (*mem_malloc_fn_t)(const mem_allocator_t *const al, const size_t sz);
+typedef void* (*mem_calloc_fn_t)(const mem_allocator_t *const al, const size_t count, const size_t sz);
+typedef void* (*mem_realloc_fn_t)(const mem_allocator_t *const al, void *ptr, const size_t old_sz, const size_t new_sz);
+typedef void  (*mem_free_fn_t)(const mem_allocator_t *const al, void *ptr);
+typedef void  (*mem_empty_fn_t)(const mem_allocator_t *const al);
 // TODO(mudit): should it deinit the allocator and thus null out ctx
 // after deinit(ctx)? or should it only deinit the ctx and leave *ctx
 // as a valid pointer?
-typedef void  (*mem_deinit_fn_t)(void *ctx);
+typedef void  (*mem_deinit_fn_t)(mem_allocator_t *const al);
 
-typedef struct {
+typedef struct mem_allocator_t {
   void *ctx;
+  sv_t name;
   mem_malloc_fn_t alloc;
   mem_calloc_fn_t calloc;
   mem_realloc_fn_t realloc;
@@ -39,97 +49,92 @@ typedef struct {
   mem_deinit_fn_t deinit;
 } mem_allocator_t;
 
-MEM_API mem_allocator_t mem_gpa_init(const char name[const static 1]);
+MEM_API mem_allocator_t mem_gpa_init(const char name_cstr[const static 1]);
 
 // ----------------------------------------------------------------------------------------------------------------
 
-#ifdef ZDX_MEMORY_IMPLEMENTATION_AUTO
-#  define ZDX_STRING_VIEW_IMPLEMENTATION
-#  define ZDX_MEMORY_IMPLEMENTATION
-#endif // ZDX_MEMORY_IMPLEMENTATION_AUTO
 
 #ifdef ZDX_MEMORY_IMPLEMENTATION
 
 #include <stdlib.h>
-#include "zdx_string_view.h"
-#include "zdx_util.h"
 
 #ifndef MEM_ASSERT
 #define MEM_ASSERT assertm
 #endif // MEM_ASSERT
 
-typedef struct {
-  sv_t name;
-} gpa_context_t;
+#define MEM_ASSERT_NONNULL(val) MEM_ASSERT((val) != NULL, "Expected: context to be non-NULL, Received: %p", (void *)(val))
 
-#define MEM_ASSERT_NONNULL(ctx) MEM_ASSERT(ctx != NULL, "Expected: context to be non-NULL, Received: %p", ctx)
-
-static void *gpa_malloc(void *ctx, const size_t sz)
+static void *gpa_malloc(const mem_allocator_t *const al, const size_t sz)
 {
-  (void) ctx;
-  MEM_ASSERT_NONNULL(ctx);
-  dbg(">> [allocator "SV_FMT"]: size = %zu", sv_fmt_args(((gpa_context_t *)ctx)->name), sz);
+  (void) al;
+  MEM_ASSERT_NONNULL(al);
+
+  dbg(">> [allocator "SV_FMT"]: size = %zu", sv_fmt_args(al->name), sz);
 
   void *ptr = malloc(sz);
 
-  dbg("<< [allocator "SV_FMT"]: %p", sv_fmt_args(((gpa_context_t *)ctx)->name), ptr);
+  dbg("<< [allocator "SV_FMT"]: %p", sv_fmt_args(al->name), ptr);
   return ptr;
 }
 
-static void *gpa_calloc(void *ctx, const size_t count, const size_t sz)
+static void *gpa_calloc(const mem_allocator_t *const al, const size_t count, const size_t sz)
 {
-  (void) ctx;
-  MEM_ASSERT_NONNULL(ctx);
+  (void) al;
+  MEM_ASSERT_NONNULL(al);
+
   dbg(">> [allocator "SV_FMT"]: count = %zu, size = %zu",
-      sv_fmt_args(((gpa_context_t *)ctx)->name), count, sz);
+      sv_fmt_args(al->name), count, sz);
 
   void *ptr = calloc(count, sz);
 
-  dbg("<< [allocator "SV_FMT"]: %p", sv_fmt_args(((gpa_context_t *)ctx)->name), ptr);
+  dbg("<< [allocator "SV_FMT"]: %p", sv_fmt_args(al->name), ptr);
   return ptr;
 }
 
-static void *gpa_realloc(void *ctx, void *ptr, const size_t old_sz, const size_t new_sz)
+static void *gpa_realloc(const mem_allocator_t *const al, void *ptr, const size_t old_sz, const size_t new_sz)
 {
-  (void) ctx;
+  (void) al;
+  MEM_ASSERT_NONNULL(al);
+
   (void) old_sz;
-  MEM_ASSERT_NONNULL(ctx);
+
   dbg(">> [allocator "SV_FMT"]: ptr = %p, old size = %zu, new size = %zu",
-      sv_fmt_args(((gpa_context_t *)ctx)->name), ptr, old_sz, new_sz);
+      sv_fmt_args(al->name), ptr, old_sz, new_sz);
 
   void *new_ptr = realloc(ptr, new_sz);
 
-  dbg("<< [allocator "SV_FMT"]: realloced ptr = %p", sv_fmt_args(((gpa_context_t *)ctx)->name), new_ptr);
+  dbg("<< [allocator "SV_FMT"]: realloced ptr = %p", sv_fmt_args(al->name), ptr);
   return new_ptr;
 }
 
-static void gpa_free(void *ctx, void *ptr)
+static void gpa_free(const mem_allocator_t *const al, void *ptr)
 {
-  (void) ctx;
-  MEM_ASSERT_NONNULL(ctx);
-  dbg(">> [allocator "SV_FMT"]: ptr = %p", sv_fmt_args(((gpa_context_t *)ctx)->name), ptr);
+  (void) al;
+  MEM_ASSERT_NONNULL(al);
 
-  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(((gpa_context_t *)ctx)->name));
+  dbg(">> [allocator "SV_FMT"]: ptr = %p", sv_fmt_args(al->name), ptr);
+
+  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(al->name));
   free(ptr);
 }
 
-static void gpa_empty(void *ctx)
+static void gpa_empty(const mem_allocator_t *const al)
 {
-  (void) ctx;
+  (void) al;
   return;
 }
 
-static void gpa_deinit(void *ctx)
+static void gpa_deinit(mem_allocator_t *const al)
 {
-  MEM_ASSERT_NONNULL(ctx);
-  dbg(">> [allocator "SV_FMT"]", sv_fmt_args(((gpa_context_t *)ctx)->name));
+  MEM_ASSERT_NONNULL(al);
 
-  gpa_context_t *gpa_ctx = ctx;
-  sv_t name = gpa_ctx->name;
+  dbg(">> [allocator "SV_FMT"]", sv_fmt_args(al->name));
+
+  sv_t name = al->name;
   (void) name;
 
-  gpa_ctx->name = (sv_t){0};
-  free(ctx);
+  al->name = (sv_t){0};
+  free(al->ctx);
 
   // reset the name string view. If it holds a dynamically allocated pointer,
   // it's whoever allocated it that needs to free it as string view never
@@ -145,27 +150,22 @@ static void gpa_deinit(void *ctx)
  *
  * Example:
  *   mem_allocator_t gpa = mem_gpa_init("test");
- *   int *a = gpa.alloc(gpa.ctx, sizeof(*a) * 10);
+ *   int *a = gpa.alloc(&gpa, sizeof(*a) * 10);
  *   ...
  *   ...
- *   gpa.free(gpa.ctx, a);
+ *   gpa.free(&gpa, a);
  *   ...
  *   ...
- *   gpa.deinit(gpa.ctx);
+ *   gpa.deinit(&gpa);
  */
-MEM_API mem_allocator_t mem_gpa_init(const char name[const static 1])
+MEM_API mem_allocator_t mem_gpa_init(const char name_cstr[const static 1])
 {
-  MEM_ASSERT_NONNULL((void *)name);
-  dbg(">> name = %s", name);
+  MEM_ASSERT_NONNULL((void *)name_cstr);
+  dbg(">> name = %s", name_cstr);
 
-  const gpa_context_t gla_default_ctx = { .name = {"Default", 7} };
-
-  gpa_context_t *ctx = gpa_malloc((void *)&gla_default_ctx, sizeof(*ctx));
-  ctx->name = sv_from_cstr(name);
-
-  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(ctx->name));
-  return (mem_allocator_t){
-    .ctx = ctx,
+  mem_allocator_t allocator = {
+    .ctx = NULL,
+    .name = sv_from_cstr(name_cstr),
     .alloc = gpa_malloc,
     .calloc = gpa_calloc,
     .realloc = gpa_realloc,
@@ -173,6 +173,9 @@ MEM_API mem_allocator_t mem_gpa_init(const char name[const static 1])
     .empty = gpa_empty,
     .deinit = gpa_deinit,
   };
+
+  dbg("<< [allocator "SV_FMT"]", sv_fmt_args(allocator.name));
+  return allocator;
 }
 
 #endif // ZDX_MEMORY_IMPLEMENTATION
