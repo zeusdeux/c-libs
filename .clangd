@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - "-std=c17"
+    - "-I./"
+    - "-pedantic"
+    - "-Wall"
+    - "-Wpendatic"
+    - "-Wdeprecated"
+    - "-Wextra"
+    - "-xc"
+  Compiler: clang
