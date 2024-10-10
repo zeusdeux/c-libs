@@ -1,4 +1,5 @@
 *
+!.clangd
 !.github
 !.github/**
 !.gitignore
