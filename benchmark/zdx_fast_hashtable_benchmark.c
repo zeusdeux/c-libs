@@ -13,12 +13,11 @@ typedef struct {
 #define FHT_VALUE_TYPE my_type_t
 #include "../zdx_fast_hashtable.h"
 
-// gcc -std=c17 -Wall -Wextra -Wdeprecated -Wpedantic -pedantic -O2 -DZDX_LOGS_DISABLE -g -o temp ./temp.c
 void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t max_key_len)
 {
   fht_t fht = fht_init(insert_count);
 
-  printf("\n------------------INFO--------------------------------------------------------------------\n");
+  printf("\n-------------------------------------------INFO-------------------------------------------\n");
   printf("Table: Fast hashtable, Max key length: %u, Unique Inserts: %u, Random Lookups: %u\n", max_key_len - 1, insert_count, lookup_count);
   printf("------------------------------------------------------------------------------------------\n");
 
