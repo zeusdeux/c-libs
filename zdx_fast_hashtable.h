@@ -88,6 +88,14 @@ typedef struct zdx_fast_hashtable_set_return_val {
   fht_err_t err; // typically 4 bytes
 } fht_add_ret_val_t;
 
+FHT_API inline const char *fht_err_str(const fht_err_t err_code);
+FHT_API fht_t fht_init(uint32_t count);
+FHT_API void fht_deinit(fht_t fht[const static 1]);
+FHT_API void fht_empty(fht_t fht[const static 1]);
+FHT_API fht_get_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len);
+FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
+FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
+
 
 #ifdef ZDX_FAST_HASHTABLE_IMPLEMENTATION
 
@@ -170,7 +178,7 @@ static inline uint32_t get_index(const fht_t fht[const static 1], const char use
   return index;
 }
 
-FHT_API const char *fht_err_str(const fht_err_t err_code)
+FHT_API inline const char *fht_err_str(const fht_err_t err_code)
 {
   FHT_ASSERT_RANGE(err_code, 1, FHT_ERR_COUNT - 1);
 
