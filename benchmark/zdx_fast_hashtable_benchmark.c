@@ -96,5 +96,5 @@ int main(void)
   run(1e4, 1e7+1e6+7e5+2e4, 9);
   run(1e5, 3e6+2e5, 9);
   run(1e6, 3e5, 9);
-  printf("Done!\n");
+  printf("\nDone!\n");
 }
