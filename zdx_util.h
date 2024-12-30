@@ -35,6 +35,17 @@
 
 #include <stdio.h> /* needed for fprintf, etc */
 #include <stdlib.h> /* needed for abort(), exit(), EXIT_FAILURE macro etc */
+#include <time.h>
+
+#define PROF_START(name) struct timespec begin_##name = {0}; \
+  struct timespec end_##name = {0};                          \
+  clock_gettime(CLOCK_MONOTONIC, &begin_##name);             \
+
+#define PROF_END(name) clock_gettime(CLOCK_MONOTONIC, &end_##name);                  \
+  const double b_##name = (double)begin_##name.tv_sec + begin_##name.tv_nsec * 1e-9; \
+  const double e_##name = (double)end_##name.tv_sec + end_##name.tv_nsec * 1e-9;     \
+  const double elapsed_time_##name = e_##name - b_##name;                            \
+  printf("PROF(" #name "): %0.9lfsecs\n", elapsed_time_##name);                      \
 
 #define KB * 1024
 #define MB KB * 1024
@@ -50,7 +61,7 @@
 #define zdx_el_sz(arr) sizeof(*(arr))
 #define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
-#if defined(DEBUG) || !defined(ZDX_ASSERT_DISABLE)
+#if !defined(NDEBUG) || !defined(ZDX_ASSERT_DISABLE)
 #define assertm(cond, ...)                                                                                \
   (cond) ?                                                                                                \
          ((void)0)                                                                                        \
