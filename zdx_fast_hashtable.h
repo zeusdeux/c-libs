@@ -20,8 +20,7 @@ static_assert(0, "FHT_VALUE_TYPE must be defined to use zdx_fast_hashtable.h");
 // TODO(mudit): Limit key length to max of 13 instead of 16?
 // We only support ASCII values as keys
 typedef struct zdx_fast_hashtable_key {
-  // 3 bits are unused but kept to ensure bit fields add up to 32bits aka 4bytes
-  // to not rely on compiler introduced padding to ensure that this struct is 12bytes total!
+  // 3 bits mark key as in use or unused
   unsigned int used : 3;
 
   // 24 bits represent the index of value in the values array
