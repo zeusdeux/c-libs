@@ -4,6 +4,7 @@ TEST_FLAGS = $(FLAGS)
 
 DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror -fsanitize=address,undefined
 DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
+BENCHMARK_FLAGS = $(FLAGS) -O2 -DZDX_LOGS_DISABLE -DNDEBUG
 
 tags:
 	@etags /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/**/*.h ./*.h ./**/*.c
@@ -123,6 +124,15 @@ test_zdx_flags_dbg:
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_flags_test.c -o ./tests/zdx_flags_test_dbg && ./tests/zdx_flags_test_dbg
 	@echo "--- Checking for memory leaks in zdx_flags.h ---"
 	@[ -z "${CI}" ] && leaks --atExit -- ./tests/zdx_flags_test_dbg
+
+benchmark_zdx_fast_hashtable:
+	@echo "--- Benchmarking zdx_fast_hashtable.h ---"
+	@clang $(BENCHMARK_FLAGS) ./benchmark/zdx_fast_hashtable_benchmark.c -o ./benchmark/zdx_fast_hashtable_benchmark && ./benchmark/zdx_fast_hashtable_benchmark
+
+
+benchmark: benchmark_zdx_fast_hashtable
+
+bench: benchmark
 
 test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena test_zdx_hashtable test_zdx_flags
 

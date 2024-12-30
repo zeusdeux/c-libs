@@ -6,6 +6,9 @@
 !Makefile
 !zdx_*.h
 !zdx_*.c
+!benchmark
+!benchmark/zdx_*.c
+!benchmark/zdx_*.h
 !tests
 !tests/zdx_*.c
 !tests/zdx_*.h
