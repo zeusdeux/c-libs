@@ -12,7 +12,7 @@ CompileFlags:
 
 InlayHints:
   BlockEnd: No
-  Designators: Yes
+  Designators: No
   Enabled: Yes
   ParameterNames: No
   DeducedTypes: Yes
