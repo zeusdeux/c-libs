@@ -156,8 +156,8 @@ static inline size_t arena_round_up_to_page_size_(size_t sz)
  *
  * NOTES
  *
- * If DEBUG is defined, then the whole arena is also memset to SA_DEBUG_BYTE which is
- * 0xcd by default to help with debugging.
+ * If NDEBUG is not defined aka debug mode, then the whole arena is also memset to
+ * SA_DEBUG_BYTE which is 0xcd by default to help with debugging.
  */
 arena_t arena_create(size_t sz)
 {
@@ -184,7 +184,7 @@ arena_t arena_create(size_t sz)
     ar_dbg("<<", &ar);
     return ar;
   }
-#if defined(DEBUG)
+#if !defined(NDEBUG)
   memset(ar.arena, SA_DEBUG_BYTE, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
 #endif
 
@@ -206,8 +206,8 @@ arena_t arena_create(size_t sz)
  *
  * NOTES
  *
- * If DEBUG is defined, then the whole arena is also memset to SA_DEBUG_BYTE which is
- * 0xcd by default to help with debugging.
+ * If NDEBUG is not defined aka debug mode, then the whole arena is also memset to SA_DEBUG_BYTE
+ * which is 0xcd by default to help with debugging.
  */
 arena_t arena_create_from_buf(void *const buf, const size_t sz)
 {
@@ -226,7 +226,7 @@ arena_t arena_create_from_buf(void *const buf, const size_t sz)
   ar.arena = buf;
   ar.size = sz;
 
-#if defined(DEBUG)
+#if !defined(NDEBUG)
   memset(ar.arena, SA_DEBUG_BYTE, sz); // in debug mode memset whole arena to 0xcd to show up in debug tooling. It's also the value used by msvc I think
 #endif
 
@@ -454,13 +454,13 @@ void *arena_calloc(arena_t *const ar, const size_t count, const size_t sz)
 
   /*
    * not zeroing memory before returning as unix, linux and macos return zero-filled memory on MAP_ANONYMOUS
-   * unless DEBUG is set as arena_create() memset's the whole arena to 0 in DEBUG mode as arena_create()
+   * unless NDEBUG is unset as arena_create() memset's the whole arena to 0 in debug mode as arena_create()
    * in debug mode memset's the whole arena to SA_DEBUG_BYTE which is 0xcd by default. If we don't memset to 0
-   * functions that rely on arena_calloc zero-ing memory, will fail in DEBUG mode.
+   * functions that rely on arena_calloc zero-ing memory, will fail in debug mode.
    */
-#if defined(DEBUG)
+#if !defined(NDEBUG)
   memset(ptr, 0, total_size);
-#endif // DEBUG
+#endif
 
   dbg("<< allocated ptr %p", ptr);
   return ptr;

@@ -1,9 +1,10 @@
-DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
-FLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wdeprecated -Werror -pedantic -O3 -g
-TEST_FLAGS = $(FLAGS)
+FLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wdeprecated -Werror -pedantic -g
+TEST_FLAGS = $(FLAGS) -O3
 
 DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror -fsanitize=address,undefined
-DBG_TEST_FLAGS = $(DBG_FLAGS) $(LINKER_FLAGS)
+DBG_TEST_FLAGS = $(DBG_FLAGS)
+DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
+
 BENCHMARK_FLAGS = $(FLAGS) -O2 -DZDX_LOGS_DISABLE -DNDEBUG
 
 tags:
@@ -60,8 +61,8 @@ test_zdx_string_view_dbg:
 	@[ -z "${CI}" ] && leaks --atExit -- ./tests/zdx_string_view_test_dbg
 
 test_zdx_simple_arena:
-	@echo "--- Running tests on zdx_simple_arena.h release including DEBUG flow ---"
-	@clang -DDEBUG $(TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test && ./tests/zdx_simple_arena_test
+	@echo "--- Running tests on zdx_simple_arena.h release including debug flow ---"
+	@clang $(TEST_FLAGS) ./tests/zdx_simple_arena_test.c -o ./tests/zdx_simple_arena_test && ./tests/zdx_simple_arena_test
 	@echo "--- Checking for memory leaks in zdx_simple_arena.h ---"
 	@[ -z "${CI}" ] && ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet --atExit 2>/dev/null -- ./tests/zdx_simple_arena_test
 

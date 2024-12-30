@@ -50,9 +50,9 @@ int main(void)
       testlog(L_INFO, "[ARENA CREATE ERROR PATH TESTS] OK!");
     }
 
-#ifdef DEBUG
+#ifndef NDEBUG
     {
-      /* DEBUG is enabled during include so arena_create should memset arena to 0xcd */
+      /* NDEBUG being unset means it's a debug build, therefore arena_create should memset arena to 0xcd */
       arena_t arena = arena_create(requested_arena_size);
       assertm(!arena.err, "Expected: valid arena to be created, Received: %s -> %s", arena.err, strerror(errno));
       assertm(arena.arena != NULL, "Expected: non-NULL arena addr, Received: %p", arena.arena);
