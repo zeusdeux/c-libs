@@ -270,6 +270,8 @@ FHT_API fht_get_ret_val_t fht_get(const fht_t fht[const static 1], const char us
 
   // TODO(mudit): Should we loop unroll manually or let the compiler do it?
   do {
+    // Tested using `% fht_cap` instead of this branch and that is WAY slower
+    // so taking the potential branch mispredict hit here instead
     if (lookup_index >= fht_cap) {
       lookup_index = 0;
     }
@@ -289,9 +291,7 @@ FHT_API fht_get_ret_val_t fht_get(const fht_t fht[const static 1], const char us
       result.val_index = curr_key_val_index;
       result.val = values[curr_key_val_index].val;
 
-      if (!result.err) {
-        return result;
-      }
+      return result;
     }
   } while(iterations < fht_cap);
 
@@ -347,7 +347,6 @@ FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_
 
   fht_get_ret_val_t get_result = fht_get(fht, user_key, user_key_len);
   fht_add_ret_val_t result = { .err = get_result.err };
-
   fht_value_t *values = fht->values;
 
   // key already exists, let's just update its value!
