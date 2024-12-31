@@ -39,6 +39,10 @@
 #include <stdio.h>  /* needed for fprintf, etc */
 #include <stdlib.h> /* needed for abort(), exit(), EXIT_FAILURE macro etc */
 
+// this is because we allow multiple imports of zdx_util.h to have differing behavior
+// for assertm() like assert from assert.h
+#undef assertm
+
 #if !defined(NDEBUG)
 #define assertm(cond, ...)                                                                               \
   (cond) ?                                                                                               \
@@ -49,7 +53,7 @@
           fprintf(stderr, "\n"),                                                                         \
           abort())
 #else  // NDEBUG
-#define assertm(...)
+#define assertm(...) ((void)0)
 #endif // NDEBUG
 #endif // POSIX
 
