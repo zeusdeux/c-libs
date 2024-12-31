@@ -3,12 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// we want to use assertm for test like asserts so we
-// enable assertm by undef-ing NDEBUG if it's defined
-#ifdef NDEBUG
-#undef NDEBUG
-#include "../zdx_util.h"
-#endif
 
 typedef struct {
   char *val;
@@ -19,13 +13,22 @@ typedef struct {
 /* #define FHT_MAX_KEYLEN 8 */
 #include "../zdx_fast_hashtable.h"
 
+// we want to use assertm for test like asserts so we
+// enable assertm by undef-ing NDEBUG if it's defined
+#ifdef NDEBUG
+#undef NDEBUG
+#include "../zdx_util.h"
+#define NDEBUG
+#endif
+
+
 void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t max_key_len)
 {
   fht_t fht = fht_init(insert_count);
 
-  printf("\n-------------------------------------------INFO-------------------------------------------\n");
+  printf("\n--------------------------------------------INFO--------------------------------------------\n");
   printf("Table: Fast hashtable, Max key length: %u, Unique Inserts: %u, Random Lookups: %u\n", max_key_len, insert_count, lookup_count);
-  printf("------------------------------------------------------------------------------------------\n");
+  printf("--------------------------------------------------------------------------------------------\n");
 
   srand(1337);
 
@@ -88,20 +91,21 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
 
 int main(void)
 {
-  printf("\n-------------------------------------------HEADER-----------------------------------------\n");
+  printf("\n--------------------------------------------HEADER------------------------------------------\n");
   printf("sizeof(fht_key_t): %zu bytes\n", sizeof(fht_key_t));
   printf("sizeof(fht_value_t): %zu bytes\n", sizeof(fht_value_t));
   printf("sizeof(fht_t): %zu bytes\n", sizeof(fht_t));
   printf("sizeof(fht_key_status_t): %zu bytes\n", sizeof(fht_key_status_t));
+  printf("sizeof(fht_ret_index_t): %zu bytes\n", sizeof(fht_ret_index_t));
   printf("sizeof(fht_get_ret_val_t): %zu bytes\n", sizeof(fht_get_ret_val_t));
   printf("sizeof(fht_add_ret_val_t): %zu bytes\n", sizeof(fht_add_ret_val_t));
-  printf("------------------------------------------------------------------------------------------\n");
+  printf("--------------------------------------------------------------------------------------------\n");
 
   run(1e1, 3e7, FHT_MAX_KEYLEN);
   run(1e2, 2e7+5e6, FHT_MAX_KEYLEN);
   run(1e3, 1e7+8e6+5e5, FHT_MAX_KEYLEN);
   run(1e4, 1e7+1e6+7e5+2e4, FHT_MAX_KEYLEN);
-  run(1e5, 3e6+2e5, FHT_MAX_KEYLEN);
-  run(1e6, 3e5, FHT_MAX_KEYLEN);
+  run(1e5, 3e6+8e5, FHT_MAX_KEYLEN);
+  run(1e6, 1e6, FHT_MAX_KEYLEN);
   printf("\nDone!\n");
 }

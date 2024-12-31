@@ -41,7 +41,6 @@
 
 #include <stdint.h>
 
-
 // ------------------------- MACROS -------------------------
 
 #if !defined(FHT_VALUE_TYPE)
@@ -56,6 +55,9 @@ _Static_assert(0, "FHT_VALUE_TYPE must be defined to use zdx_fast_hashtable.h");
 #include "zdx_util.h"
 #define FHT_ASSERT assertm
 #endif
+
+#define FHT_ASSERT_RANGE(val, min, max) FHT_ASSERT((val) >= (min) && (val) <= (max), "Expected: value to be between %u and %u (both inclusive), Received: %u", (min), (max), (val))
+#define FHT_ASSERT_NONNULL(ptr) FHT_ASSERT((ptr) != NULL, "Expected: ptr to not be null, Received: NULL")
 
 // max bits for key count imply max keycount
 #define FHT_MAX_KEYCOUNT_BITS 20
@@ -120,10 +122,25 @@ typedef struct zdx_fast_hashtable_add_return_val {
   fht_err_t err; // typically 4 bytes
 } fht_add_ret_val_t;
 
+// always included (aka not guarded by ZDX_FAST_HASHTABLE_IMPLEMENTATION) as this is more data than function
+// and should always get inlined with -O2 or above
+static inline const char *fht_err_str(const fht_err_t err_code)
+{
+  FHT_ASSERT_RANGE(err_code, 1, FHT_ERR_COUNT - 1);
+
+  static const char *const fht_err_strs[FHT_ERR_COUNT] = {
+    "FHT_ERR_NONE",
+    "FHT_ERR_KEY_NOT_FOUND",
+    "FHT_ERR_HASHTABLE_EMPTY",
+    "FHT_ERR_ADD_FAILED",
+    "FHT_ERR_ADD_FAILED_OOM",
+  };
+
+  return fht_err_strs[err_code];
+}
+
 
 // -------------------- FUNCTION DECLARATIONS --------------------
-
-FHT_API const char *fht_err_str(const fht_err_t err_code);
 
 FHT_API fht_t fht_init(uint32_t count);
 FHT_API void fht_deinit(fht_t fht[const static 1]);
@@ -138,15 +155,9 @@ FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_
 
 #ifdef ZDX_FAST_HASHTABLE_IMPLEMENTATION
 
-
 // TODO(mudit): Remove this and don't rely on malloc()
 #include <stdlib.h>
 #include <string.h>
-
-
-#define FHT_ASSERT_NONNULL(ptr) assertm((ptr) != NULL, "Expected: ptr to not be null, Received: NULL")
-#define FHT_ASSERT_RANGE(val, min, max) assertm((val) >= (min) && (val) <= (max), "Expected: value to be between %u and %u (both inclusive), Received: %u", (min), (max), (val))
-
 
 // -------------------- PRIVATE FUNCTIONS --------------------
 
@@ -154,14 +165,10 @@ FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_
 // and then modified based on benchmarking data.
 static inline uint32_t fht_hash_small_string_(const char str[const static 1], const uint8_t len, const uint32_t fht_cap)
 {
-  // TODO(mudit): should we remove these asserts and assume they are done before calling this fn?
-  FHT_ASSERT_NONNULL(str);
-  FHT_ASSERT_RANGE(len, 1, FHT_MAX_KEYLEN);
-
   uint32_t hash = 0;
-  uint8_t is_large = fht_cap < 1e6;
-  uint8_t multiplier = is_large ? 31 : 37;
-  uint8_t shift = is_large ? 5 : 0;
+  uint8_t is_small = fht_cap < 1e4;
+  uint8_t multiplier = is_small ? 31 : fht_cap >= 1e5 ? 37 : 41;
+  uint8_t shift = is_small ? 5 : 0;
 
   for (uint8_t i = 0; i < len; i++) {
     hash = multiplier * hash + str[i];
@@ -277,21 +284,6 @@ static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const
 
 // -------------------- PUBLIC FUNCTIONS --------------------
 
-FHT_API const char *fht_err_str(const fht_err_t err_code)
-{
-  FHT_ASSERT_RANGE(err_code, 1, FHT_ERR_COUNT - 1);
-
-  static const char *const fht_err_strs[FHT_ERR_COUNT] = {
-    "FHT_ERR_NONE",
-    "FHT_ERR_KEY_NOT_FOUND",
-    "FHT_ERR_HASHTABLE_EMPTY",
-    "FHT_ERR_ADD_FAILED",
-    "FHT_ERR_ADD_FAILED_OOM",
-  };
-
-  return fht_err_strs[err_code];
-}
-
 // TODO(mudit): Parameterize over a memory allocator
 // TODO(mudit): Rewrite this correctly to not use malloc() nor hardcode things that needn't be hardcoded
 FHT_API fht_t fht_init(uint32_t count)
@@ -311,6 +303,8 @@ FHT_API void fht_deinit(fht_t fht[const static 1])
 
   free(fht->keys);
   free(fht->values);
+  fht->keys = NULL;
+  fht->values = NULL;
   fht->cap = 0;
   fht->count = 0;
 }
