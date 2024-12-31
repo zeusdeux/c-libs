@@ -159,10 +159,14 @@ FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_
 #include <stdlib.h>
 #include <string.h>
 
+
 // -------------------- PRIVATE FUNCTIONS --------------------
 
 // Base function taken from: https://stackoverflow.com/a/2351171
 // and then modified based on benchmarking data.
+// The modifications work as the capacity of the hashtable is fixed.
+// If it wasn't, this function would return different indices as the capacity
+// of the hashtable changes thus making it absolutely useless.
 static inline uint32_t fht_hash_small_string_(const char str[const static 1], const uint8_t len, const uint32_t fht_cap)
 {
   uint32_t hash = 0;
@@ -208,6 +212,9 @@ static inline uint32_t get_hashed_index_(const fht_t fht[const static 1], const 
   //              of this fn. Should we do that check here or leave it in the callers?
   //
   // we use open addressing
+  //
+  // TODO(mudit): Based on the load factor, spread keys around aka change the amount
+  //              we increment index by.
   for (;;index++) {
     if (index >= fht_cap) {
       index = 0; // wrap around <- this is also what can cause an infinite loop if hashtable being full isn't checked before calling this fn
@@ -263,6 +270,9 @@ static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const
       lookup_index = 0;
     }
 
+    // TODO(mudit): Based on the load factor, the keys are spread around by the hash function
+    //              to reduce chains of collision and therefore, use the same factor to increment
+    //              the lookup by.
     const fht_key_t curr_key = keys[lookup_index++];
     const uint8_t curr_key_len = curr_key.key_len;
     const char *curr_key_start_ptr = curr_key.key;
