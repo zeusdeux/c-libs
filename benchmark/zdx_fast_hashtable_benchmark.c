@@ -3,7 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// we want to use assertm for test like asserts so we
+// enable assertm by undef-ing NDEBUG if it's defined
+#ifdef NDEBUG
+#undef NDEBUG
 #include "../zdx_util.h"
+#endif
 
 typedef struct {
   char *val;
@@ -31,7 +36,7 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
 
   srand(1337);
 
-  PROF_START(INSERTS)
+  PROF_START(INSERTS);
   for (uint32_t i = 0; i < insert_count; i++) {
     uint32_t len = (uint32_t)rand() % max_key_len;
     len = len < 4 ? 7 : len;
@@ -59,9 +64,9 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
       exit(1);
     }
   }
-  PROF_END(INSERTS)
+  PROF_END(INSERTS);
 
-  PROF_START(LOOKUPS)
+  PROF_START(LOOKUPS);
   for (uint32_t i = 0; i < lookup_count; i++) {
     // mimic random access of hashtable
     uint32_t random_key_index = (uint32_t)rand() % insert_count;
@@ -81,7 +86,7 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
     assertm(memcmp(get_ret_val.val.val, key, key_len) == 0,
             "Expected: `%s` as val (key = `%s`), Received: `%s` as val", key, key, get_ret_val.val.val);
   }
-  PROF_END(LOOKUPS)
+  PROF_END(LOOKUPS);
 
   assertm(fht.count == insert_count, "Expected: %u, Received: %u", insert_count, fht.count);
 

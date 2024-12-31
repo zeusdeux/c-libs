@@ -5,7 +5,7 @@ DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdep
 DBG_TEST_FLAGS = $(DBG_FLAGS)
 DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
 
-BENCHMARK_FLAGS = $(FLAGS) -O2 -DZDX_LOGS_DISABLE -DNDEBUG
+BENCHMARK_FLAGS = $(FLAGS) -O2 -DZDX_LOGS_DISABLE -DNDEBUG -DZDX_PROF_ENABLE
 
 tags:
 	@etags /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/**/*.h ./*.h ./**/*.c
@@ -142,4 +142,4 @@ test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_stri
 clean:
 	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
 
-.PHONY: clean test_* test tags
+.PHONY: clean test_* test bench benchmark tags
