@@ -16,6 +16,7 @@ typedef struct {
 
 #define ZDX_FAST_HASHTABLE_IMPLEMENTATION
 #define FHT_VALUE_TYPE my_type_t
+/* #define FHT_MAX_KEYLEN 8 */
 #include "../zdx_fast_hashtable.h"
 
 void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t max_key_len)
@@ -23,22 +24,14 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
   fht_t fht = fht_init(insert_count);
 
   printf("\n-------------------------------------------INFO-------------------------------------------\n");
-  printf("Table: Fast hashtable, Max key length: %u, Unique Inserts: %u, Random Lookups: %u\n", max_key_len - 1, insert_count, lookup_count);
+  printf("Table: Fast hashtable, Max key length: %u, Unique Inserts: %u, Random Lookups: %u\n", max_key_len, insert_count, lookup_count);
   printf("------------------------------------------------------------------------------------------\n");
-
-  log(L_INFO, "sizeof(fht_key_t): %zu bytes", sizeof(fht_key_t));
-  log(L_INFO, "sizeof(fht_key_suffix_t): %zu bytes", sizeof(fht_key_suffix_t));
-  log(L_INFO, "sizeof(fht_value_t): %zu bytes", sizeof(fht_value_t));
-  log(L_INFO, "sizeof(fht_t): %zu bytes", sizeof(fht_t));
-  log(L_INFO, "sizeof(fht_get_ret_val_t): %zu bytes", sizeof(fht_get_ret_val_t));
-  log(L_INFO, "sizeof(fht_add_ret_val_t): %zu bytes", sizeof(fht_add_ret_val_t));
-  log(L_INFO, "------------------------------------------------------------------------------------------");
 
   srand(1337);
 
   PROF_START(INSERTS);
   for (uint32_t i = 0; i < insert_count; i++) {
-    uint32_t len = (uint32_t)rand() % max_key_len;
+    uint32_t len = (uint32_t)rand() % (max_key_len + 1);
     len = len < 4 ? 7 : len;
 
     char key[len + 1];
@@ -71,7 +64,7 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
     // mimic random access of hashtable
     uint32_t random_key_index = (uint32_t)rand() % insert_count;
     fht_key_t *key_obj = &fht.keys[random_key_index];
-    char *key = key_obj->key_prefix;
+    char *key = key_obj->key;
     uint8_t key_len = key_obj->key_len;
 
     const fht_get_ret_val_t get_ret_val = fht_get(&fht, key, key_len);
@@ -95,11 +88,20 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
 
 int main(void)
 {
-  run(1e1, 3e7, 9);
-  run(1e2, 2e7+5e6, 9);
-  run(1e3, 1e7+8e6+5e5, 9);
-  run(1e4, 1e7+1e6+7e5+2e4, 9);
-  run(1e5, 3e6+2e5, 9);
-  run(1e6, 3e5, 9);
+  printf("\n-------------------------------------------HEADER-----------------------------------------\n");
+  printf("sizeof(fht_key_t): %zu bytes\n", sizeof(fht_key_t));
+  printf("sizeof(fht_value_t): %zu bytes\n", sizeof(fht_value_t));
+  printf("sizeof(fht_t): %zu bytes\n", sizeof(fht_t));
+  printf("sizeof(fht_key_status_t): %zu bytes\n", sizeof(fht_key_status_t));
+  printf("sizeof(fht_get_ret_val_t): %zu bytes\n", sizeof(fht_get_ret_val_t));
+  printf("sizeof(fht_add_ret_val_t): %zu bytes\n", sizeof(fht_add_ret_val_t));
+  printf("------------------------------------------------------------------------------------------\n");
+
+  run(1e1, 3e7, FHT_MAX_KEYLEN);
+  run(1e2, 2e7+5e6, FHT_MAX_KEYLEN);
+  run(1e3, 1e7+8e6+5e5, FHT_MAX_KEYLEN);
+  run(1e4, 1e7+1e6+7e5+2e4, FHT_MAX_KEYLEN);
+  run(1e5, 3e6+2e5, FHT_MAX_KEYLEN);
+  run(1e6, 3e5, FHT_MAX_KEYLEN);
   printf("\nDone!\n");
 }

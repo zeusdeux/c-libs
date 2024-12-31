@@ -128,7 +128,7 @@ test_zdx_flags_dbg:
 
 benchmark_zdx_fast_hashtable:
 	@echo "--- Benchmarking zdx_fast_hashtable.h ---"
-	@clang $(BENCHMARK_FLAGS) ./benchmark/zdx_fast_hashtable_benchmark.c -o ./benchmark/zdx_fast_hashtable_benchmark && ./benchmark/zdx_fast_hashtable_benchmark
+	@clang $(BENCHMARK_FLAGS) ./benchmarks/zdx_fast_hashtable_benchmark.c -o ./benchmarks/zdx_fast_hashtable_benchmark && ./benchmarks/zdx_fast_hashtable_benchmark
 
 
 benchmark: benchmark_zdx_fast_hashtable
