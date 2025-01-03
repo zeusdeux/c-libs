@@ -24,13 +24,12 @@
  *
  * DESCRIPTION
  *
- * A simple hashtable with max key length of 13 ASCII chars that must have a
+ * A simple hashtable with max key length of 15 ASCII chars that must have a
  * pre-defined max key/value pair count when initialized.
  *
  * CONSTRAINTS
  *
- * 1. Max key length allowed is 13 ASCII characters (13 bytes) and can be configured
- *    at include time using FHT_MAX_KEYLEN macro. (Recommended range: 8 to 13)
+ * 1. Max key length allowed is 15 ASCII characters (15 bytes)
  * 2. Max no., of keys allowed is 1_048_576 (2^20) as beyond that perf of this strategy
  *    becomes unacceptable to me
  * 3. Max count of key/value pairs that will be stored need to be given when the
@@ -63,27 +62,22 @@ _Static_assert(0, "FHT_VALUE_TYPE must be defined to use zdx_fast_hashtable.h");
 #define FHT_MAX_KEYCOUNT_BITS 20
 // max key count implies max val count
 #define FHT_MAX_KEYCOUNT 1 << FHT_MAX_KEYCOUNT_BITS
-// max key len as we only have 4 bits for key len balanced with perf (hence 13 and not 15)
+// max key len as we only have 4 bits for key len balanced with perf
 #ifndef FHT_MAX_KEYLEN
-#define FHT_MAX_KEYLEN 13
+#define FHT_MAX_KEYLEN 15
 #endif // FHT_MAX_KEYLEN
-_Static_assert(FHT_MAX_KEYLEN > 0 && FHT_MAX_KEYLEN < 14, "FHT_MAX_KEYLEN should be between 1 and 13");
+_Static_assert(FHT_MAX_KEYLEN > 0 && FHT_MAX_KEYLEN <= 15, "FHT_MAX_KEYLEN should be between 1 and 15");
 
 
 // -------------------- TYPE DECLARATIONS --------------------
 
 typedef struct zdx_fast_hashtable_key {
   // 4 bits represent the length of the key
-  //   Max we allow is 13 ASCII chars
-  //   Also, key_len == 0 means key is unused
+  //   Max we allow is 15 ASCII chars. Also, key_len == 0 means key is unused
+  //   This will end up alining to between 1 to 4 bytes typically dependending on FHT_MAX_KEYLEN
   unsigned int key_len : 4;
 
-  // 20 bits represent the index of value in the values array
-  //   Max count of key/value pairs this hashtable can store therefore is 2^20
-  //   i.e., 1048576 or 0 to 1046575 in indices
-  unsigned int val_index : FHT_MAX_KEYCOUNT_BITS;
-
-  // FHT_MAX_KEYLEN bytes (1 to 13) to hold ASCII characters
+  // FHT_MAX_KEYLEN bytes (1 to 15) to hold ASCII characters
   char key[FHT_MAX_KEYLEN];
 } fht_key_t;
 
@@ -98,12 +92,6 @@ typedef struct zdx_fast_hashtable {
     fht_value_t *values;
 } fht_t;
 
-typedef enum {
-  FHT_KEY_STATUS_UNUSED = 0,
-  FHT_KEY_STATUS_USED = 1,
-  FHT_KEY_STATUS_COUNT,
-} fht_key_status_t;
-
 typedef enum zdx_fast_hashtable_error {
   FHT_ERR_NONE = 0,
   FHT_ERR_KEY_NOT_FOUND,
@@ -116,11 +104,14 @@ typedef enum zdx_fast_hashtable_error {
 typedef struct zdx_fast_hashtable_get_return_val {
   fht_err_t err; // typically 4 bytes
   FHT_VALUE_TYPE val; // depends on sizeof(FHT_VALUE_TYPE) which is user defined but if a ptr, it'll be 8 bytes
-} fht_get_ret_val_t;
+} fht_ret_val_t;
 
-typedef struct zdx_fast_hashtable_add_return_val {
+typedef struct zdx_fast_hashtable_return_index {
   fht_err_t err; // typically 4 bytes
-} fht_add_ret_val_t;
+  // no of keys == no of values. This is another 4 bytes with padding
+  // and key index == val index as that's what we do in fht_add()
+  unsigned int index : FHT_MAX_KEYCOUNT_BITS;
+} fht_ret_index_t;
 
 // always included (aka not guarded by ZDX_FAST_HASHTABLE_IMPLEMENTATION) as this is more data than function
 // and should always get inlined with -O2 or above
@@ -146,9 +137,9 @@ FHT_API fht_t fht_init(uint32_t count);
 FHT_API void fht_deinit(fht_t fht[const static 1]);
 FHT_API void fht_empty(fht_t fht[const static 1]);
 
-FHT_API fht_get_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len);
-FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
-FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
+FHT_API fht_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len);
+FHT_API fht_ret_index_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
+FHT_API fht_ret_index_t fht_update(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
 
 
 // ------------------ FUNCTION IMPLEMENTATIONS -------------------
@@ -185,58 +176,7 @@ static inline uint32_t fht_hash_small_string_(const char str[const static 1], co
   return hash % fht_cap;
 }
 
-static inline uint32_t get_hashed_index_(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, const fht_key_status_t key_status)
-{
-  // TODO(mudit): Should we do these checks? Cuz the fns that call get_index already should be doing these checks
-  FHT_ASSERT_NONNULL(fht);
-  FHT_ASSERT_NONNULL(user_key);
-  FHT_ASSERT_RANGE(user_key_len, 1, FHT_MAX_KEYLEN);
-
-  const uint32_t fht_cap = fht->cap;
-  uint32_t index = fht_hash_small_string_(user_key, user_key_len, fht_cap);
-
-  const fht_key_t *keys = fht->keys;
-  fht_key_t curr_key = keys[index];
-  uint8_t curr_key_status = curr_key.key_len > 0;
-
-  if (curr_key_status == key_status) {
-    return index;
-  }
-
-  index++;
-
-  // TODO(mudit): The loop below can run for ever if the hashtable is full and
-  //              you're looking for a free slot or if the hashtable is empty and
-  //              you're looking for a filled slot.
-  //              Currently we do checks to prevent this infinite loops in the callers
-  //              of this fn. Should we do that check here or leave it in the callers?
-  //
-  // we use open addressing
-  //
-  // TODO(mudit): Based on the load factor, spread keys around aka change the amount
-  //              we increment index by.
-  for (;;index++) {
-    if (index >= fht_cap) {
-      index = 0; // wrap around <- this is also what can cause an infinite loop if hashtable being full isn't checked before calling this fn
-    }
-
-    curr_key = keys[index];
-    curr_key_status = curr_key.key_len > 0;
-
-    if (curr_key_status == key_status) {
-      break;
-    }
-  }
-
-  return index;
-}
-
-typedef struct zdx_fast_hashtable_return_index {
-  fht_err_t err; // typically 4 bytes
-  unsigned int val_index : FHT_MAX_KEYCOUNT_BITS; // no of keys == no of values. This is another 4 bytes with padding
-} fht_ret_index_t;
-
-static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len)
+static inline fht_ret_index_t fht_get_index_(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len)
 {
   dbg(">> key = %s, len = %u", user_key, user_key_len);
 
@@ -244,8 +184,8 @@ static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const
   FHT_ASSERT_NONNULL(user_key);
   FHT_ASSERT_RANGE(user_key_len, 1, FHT_MAX_KEYLEN);
 
-  // result.val_index here is 0 and should always be a valid index
-  // as result.err is what disambiguates a valid val_index from an
+  // result.index here is 0 and should always be a valid index
+  // as result.err is what disambiguates a valid index from an
   // invalid one
   fht_ret_index_t result = { .err = FHT_ERR_KEY_NOT_FOUND };
   const uint32_t fht_count = fht->count;
@@ -258,22 +198,12 @@ static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const
   const fht_key_t *keys = fht->keys;
   const uint32_t fht_cap = fht->cap;
 
-  // Get index of first used key post application of hash function on user_key
-  uint32_t lookup_index = get_hashed_index_(fht, user_key, user_key_len, FHT_KEY_STATUS_USED);
-  uint32_t iterations = 0; // this is to prevent an infinite lookup loop below
+  uint32_t lookup_index = fht_hash_small_string_(user_key, user_key_len, fht_cap);
+  uint32_t iterations = fht_cap; // this is to prevent an infinite lookup loop below
 
   // TODO(mudit): Should we loop unroll manually or let the compiler do it?
-  do {
-    // Tested using `% fht_cap` instead of this branch and that is WAY slower
-    // so taking the potential branch mispredict hit here instead
-    if (lookup_index >= fht_cap) {
-      lookup_index = 0;
-    }
-
-    // TODO(mudit): Based on the load factor, the keys are spread around by the hash function
-    //              to reduce chains of collision and therefore, use the same factor to increment
-    //              the lookup by.
-    const fht_key_t curr_key = keys[lookup_index++];
+  while(iterations--) {
+    const fht_key_t curr_key = keys[lookup_index];
     const uint8_t curr_key_len = curr_key.key_len;
     const char *curr_key_start_ptr = curr_key.key;
 
@@ -282,11 +212,21 @@ static fht_ret_index_t fht_get_val_index_(const fht_t fht[const static 1], const
         *user_key == *curr_key_start_ptr &&
         memcmp(user_key, curr_key_start_ptr, user_key_len) == 0) {
       result.err = FHT_ERR_NONE;
-      result.val_index = curr_key.val_index;
+      result.index = lookup_index;
 
       return result;
     }
-  } while(iterations < fht_cap);
+
+    // TODO(mudit): User a better increment strategy than linear probing
+    // that can also always find a free spot if there is one
+    lookup_index++;
+
+    // Tested using `% fht_cap` instead of this branch and that is WAY slower
+    // so taking the potential branch mispredict hit here instead
+    if (lookup_index >= fht_cap) {
+      lookup_index = 0;
+    }
+  };
 
   return result;
 }
@@ -326,19 +266,18 @@ FHT_API void fht_empty(fht_t fht[const static 1])
   fht->count = 0;
 }
 
-FHT_API fht_get_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len)
+FHT_API fht_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len)
 {
-  const fht_ret_index_t get_result = fht_get_val_index_(fht, user_key, user_key_len);
-
-  const fht_get_ret_val_t result = {
+  const fht_ret_index_t get_result = fht_get_index_(fht, user_key, user_key_len);
+  const fht_ret_val_t result = {
     .err = get_result.err,
-    .val = fht->values[get_result.val_index].val
+    .val = fht->values[get_result.index].val
   };
 
   return result;
 }
 
-FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val)
+FHT_API fht_ret_index_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val)
 {
   dbg(">> key = %s, len = %u", user_key, user_key_len);
 
@@ -346,7 +285,7 @@ FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key
   FHT_ASSERT_NONNULL(user_key);
   FHT_ASSERT_RANGE(user_key_len, 1, FHT_MAX_KEYLEN);
 
-  fht_add_ret_val_t result = {0};
+  fht_ret_index_t result = {0};
 
   const uint32_t fht_count = fht->count;
   const uint32_t fht_cap = fht->cap;
@@ -356,8 +295,27 @@ FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key
     return result;
   }
 
-  const uint32_t insert_index = get_hashed_index_(fht, user_key, user_key_len, FHT_KEY_STATUS_UNUSED);
+  uint32_t insert_index = fht_hash_small_string_(user_key, user_key_len, fht_cap);
   fht_key_t *const keys = fht->keys;
+  fht_key_t curr_key = keys[insert_index];
+  uint8_t curr_key_is_free = curr_key.key_len == 0;;
+
+  // collision
+  while(!curr_key_is_free) {
+    // TODO(mudit): User a better increment strategy than linear probing
+    // that can also always find a free spot if there is one
+    ++insert_index;
+
+    if (insert_index >= fht_cap) {
+      // wrap around <- this is also what can cause an infinite loop if
+      // hashtable being full isn't checked before getting here
+      insert_index = 0;
+    }
+
+    curr_key = keys[insert_index];
+    curr_key_is_free = curr_key.key_len == 0;
+  };
+
   fht_value_t *const values = fht->values;
 
   fht_key_t *const new_key = &keys[insert_index];
@@ -366,7 +324,6 @@ FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key
   char *const new_key_start_ptr = new_key->key;
 
   // add key
-  new_key->val_index = insert_index;
   new_key->key_len = user_key_len;
   memcpy(new_key_start_ptr, user_key, user_key_len);
 
@@ -377,22 +334,21 @@ FHT_API fht_add_ret_val_t fht_add(fht_t fht[const static 1], const char user_key
   fht->count++;
 
   result.err = FHT_ERR_NONE;
+  result.index = insert_index;
 
   return result;
 }
 
-FHT_API fht_add_ret_val_t fht_update(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val)
+FHT_API fht_ret_index_t fht_update(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val)
 {
   dbg(">> key = %s, len = %u", user_key, user_key_len);
 
-  fht_ret_index_t get_result = fht_get_val_index_(fht, user_key, user_key_len);
-  fht_add_ret_val_t result = { .err = get_result.err };
+  fht_ret_index_t result = fht_get_index_(fht, user_key, user_key_len);
   fht_value_t *values = fht->values;
 
   // key already exists, let's just update its value!
-  if (get_result.err == FHT_ERR_NONE) {
-    values[get_result.val_index].val = val;
-    return result;
+  if (result.err == FHT_ERR_NONE) {
+    values[result.index].val = val;
   }
 
   return result;

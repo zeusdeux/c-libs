@@ -10,7 +10,7 @@ typedef struct {
 
 #define ZDX_FAST_HASHTABLE_IMPLEMENTATION
 #define FHT_VALUE_TYPE my_type_t
-/* #define FHT_MAX_KEYLEN 8 */
+/* #define FHT_MAX_KEYLEN 13 */
 #include "../zdx_fast_hashtable.h"
 
 // we want to use assertm for test like asserts so we
@@ -46,14 +46,14 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
       }
     key[len] = 0; // we set this NUL byte as we use strlen(key) in the call to fht_set() below
 
+
     char *val_str = malloc(sizeof(*val_str) * len);
     memcpy(val_str, key, len);
     my_type_t val = {.val = val_str};
     uint8_t key_len = strlen(key);
 
-    log(L_INFO, "Set key `%s` (len = %u) as %s", key, key_len, val.val);
-
-    const fht_add_ret_val_t add_ret_val = fht_add(&fht, key, key_len, val);
+    const fht_ret_index_t add_ret_val = fht_add(&fht, key, key_len, val);
+    log(L_INFO, "Added key `%s` (len = %u) with value `%s` at index %d", key, key_len, val.val, add_ret_val.index);
 
     if (add_ret_val.err) {
       log(L_ERROR, "Error: Failed to set key `%s` due to `%s`", key, fht_err_str(add_ret_val.err));
@@ -70,7 +70,7 @@ void run(const uint32_t insert_count, const uint32_t lookup_count, const uint8_t
     char *key = key_obj->key;
     uint8_t key_len = key_obj->key_len;
 
-    const fht_get_ret_val_t get_ret_val = fht_get(&fht, key, key_len);
+    const fht_ret_val_t get_ret_val = fht_get(&fht, key, key_len);
 
     if (get_ret_val.err) {
       log(L_ERROR, "Error: Failed to get key `%s` due to `%s`", key, fht_err_str(get_ret_val.err));
@@ -95,10 +95,8 @@ int main(void)
   printf("sizeof(fht_key_t): %zu bytes\n", sizeof(fht_key_t));
   printf("sizeof(fht_value_t): %zu bytes\n", sizeof(fht_value_t));
   printf("sizeof(fht_t): %zu bytes\n", sizeof(fht_t));
-  printf("sizeof(fht_key_status_t): %zu bytes\n", sizeof(fht_key_status_t));
   printf("sizeof(fht_ret_index_t): %zu bytes\n", sizeof(fht_ret_index_t));
-  printf("sizeof(fht_get_ret_val_t): %zu bytes\n", sizeof(fht_get_ret_val_t));
-  printf("sizeof(fht_add_ret_val_t): %zu bytes\n", sizeof(fht_add_ret_val_t));
+  printf("sizeof(fht_ret_val_t): %zu bytes\n", sizeof(fht_ret_val_t));
   printf("--------------------------------------------------------------------------------------------\n");
 
   run(1e1, 3e7, FHT_MAX_KEYLEN);
