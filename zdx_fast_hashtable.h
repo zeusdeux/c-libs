@@ -221,6 +221,7 @@ static inline fht_ret_index_t fht_get_index_(const fht_t fht[const static 1], co
     // that can also always find a free spot if there is one
     lookup_index++;
 
+    // Wrap around as start index could be anywhere between 0 and fht->cap - 1.
     // Tested using `% fht_cap` instead of this branch and that is WAY slower
     // so taking the potential branch mispredict hit here instead
     if (lookup_index >= fht_cap) {
