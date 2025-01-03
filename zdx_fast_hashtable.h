@@ -135,7 +135,7 @@ static inline const char *fht_err_str(const fht_err_t err_code)
 
 FHT_API fht_t fht_init(uint32_t count);
 FHT_API void fht_deinit(fht_t fht[const static 1]);
-FHT_API void fht_empty(fht_t fht[const static 1]);
+FHT_API inline void fht_empty(fht_t fht[const static 1]);
 
 FHT_API fht_ret_val_t fht_get(const fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len);
 FHT_API fht_ret_index_t fht_add(fht_t fht[const static 1], const char user_key[const static 1], const uint8_t user_key_len, FHT_VALUE_TYPE val);
@@ -260,7 +260,7 @@ FHT_API void fht_deinit(fht_t fht[const static 1])
   fht->count = 0;
 }
 
-FHT_API void fht_empty(fht_t fht[const static 1])
+FHT_API inline void fht_empty(fht_t fht[const static 1])
 {
   FHT_ASSERT_NONNULL(fht);
 
