@@ -52,7 +52,7 @@
           fprintf(stderr, __VA_ARGS__),                                                                  \
           fprintf(stderr, "\n"),                                                                         \
           abort())
-#else  // NDEBUG
+#else
 #define assertm(...) ((void)0)
 #endif // NDEBUG
 #endif // POSIX
@@ -67,11 +67,11 @@
 #define zdx_max(a, b) ((a) > (b) ? (a) : (b))
 
 // Arg extraction macros
-#define zdx_last_arg(...) (__VA_ARGS__)
+#define zdx_last_arg(...)         (__VA_ARGS__)
 #define zdx_first_arg(first, ...) (first)
 
 // Array macros. Check for false-y values of (arr) BEFORE calling these as the dereference of NULL == seg fault
-#define zdx_el_sz(arr) sizeof(*(arr))
+#define zdx_el_sz(arr)   sizeof(*(arr))
 #define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
 // POSIX only for all the helper macros below. GG windows
@@ -89,7 +89,8 @@
   const double e_##name = (double)end_##name.tv_sec + end_##name.tv_nsec * 1e-9;     \
   const double elapsed_time_##name = e_##name - b_##name;                            \
   fprintf(stderr, "PROF(" #name "): %0.9lfsecs\n", elapsed_time_##name)
-#else  // ZDX_PROF_ENABLE
+
+#else
 #define PROF_START(name)
 #define PROF_END(name)
 #endif // ZDX_PROF_ENABLE
@@ -101,17 +102,24 @@
     fprintf(stderr, __VA_ARGS__);                                   \
     fprintf(stderr, "\n");                                          \
   } while(0)
-#else // ZDX_TRACE_ENABLE
+#else
 #define dbg(...)
 #endif // ZDX_TRACE_ENABLE
 
-
+#ifdef DEBUG
+#define bail(...) do {                                              \
+    fprintf(stderr, "%s:%d:\t[%s] ", __FILE__, __LINE__, __func__); \
+    fprintf(stderr, __VA_ARGS__);                                   \
+    fprintf(stderr, "\n");                                          \
+    exit(EXIT_FAILURE);                                             \
+  } while(0)
+#else
 #define bail(...) do {                          \
     fprintf(stderr, __VA_ARGS__);               \
     fprintf(stderr, "\n");                      \
     exit(EXIT_FAILURE);                         \
   } while(0)
-
+#endif // DEBUG
 
 typedef enum {
   L_ERROR = 0,
@@ -138,5 +146,4 @@ static const char *ZDX_LOG_LEVEL_STR[L_COUNT] = {
 #endif // ZDX_LOGS_DISABLE
 
 #endif // POSIX
-
 #endif // ZDX_UTIL_H_
