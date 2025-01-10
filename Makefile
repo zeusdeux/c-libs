@@ -23,7 +23,7 @@ test_zdx_util_dbg:
 	@clang $(DBG_TEST_FLAGS) ./tests/zdx_util_test.c -o ./tests/zdx_util_test_dbg && ./tests/zdx_util_test_dbg
 	@echo "--- Checking for memory leaks in zdx_util.h ---"
 	@echo "${CI}"
-	@[ ! -z "${CI}" ] && echo "bruh"
+	@[ -z "${CI}" ] && echo "bruh"
 	@[ -z "${CI}" ] && leaks --atExit -- ./tests/zdx_util_test_dbg
 
 test_zdx_da:
