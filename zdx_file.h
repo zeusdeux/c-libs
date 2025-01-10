@@ -141,7 +141,8 @@ FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict
 
   if (ferror(f)) {
     FL_FREE(contents_buf);
-    fc.err = "Reading file failed";
+    /* fc.err = "Reading file failed"; */
+    fc.err = strerror(errno);
 
     fc_dbg("<<", fc);
     return fc;

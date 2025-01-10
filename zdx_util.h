@@ -57,6 +57,7 @@
 #endif // NDEBUG
 #endif // POSIX
 
+
 #ifndef ZDX_UTIL_H_
 #define ZDX_UTIL_H_
 
