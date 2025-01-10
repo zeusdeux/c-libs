@@ -81,6 +81,7 @@ size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static
 #ifdef ZDX_GAP_BUFFER_IMPLEMENTATION
 
 #include <string.h>
+#include <inttypes.h>
 
 #ifdef ZDX_TRACE_ENABLE
 #define gb_dbg(label, gb) do {                                         \
@@ -100,8 +101,8 @@ size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static
 
 #define gb_assert_validity(gb) do {                                                                                                             \
     GB_ASSERT((gb) != NULL, "[zdx str] Expected: valid gap buffer instance, Received: %p", ((void *)(gb)));                                     \
-    GB_ASSERT(((int64_t)gb_gap_len(gb)) >= 0, "[zdx str] Expected: gap length to be 0 or greater, Received: %lld", ((int64_t) gb_gap_len(gb))); \
-    GB_ASSERT(((int64_t)(gb)->length) >=0, "[zdx str] Expected: length is non-negative, Received: %lld", ((int64_t)(gb)->length));              \
+    GB_ASSERT(((int64_t)gb_gap_len(gb)) >= 0, "[zdx str] Expected: gap length to be 0 or greater, Received: %"PRId64"", ((int64_t) gb_gap_len(gb))); \
+    GB_ASSERT(((int64_t)(gb)->length) >=0, "[zdx str] Expected: length is non-negative, Received: %"PRId64"", ((int64_t)(gb)->length));              \
   } while(0)
 
 #define gb_gap_len(gb) ((gb)->gap_end_ - (gb)->gap_start_)
@@ -252,7 +253,7 @@ void gb_move_cursor(gb_t gb[const static 1], const int64_t pos)
   const size_t new_gap_start = (size_t) signed_new_gap_start;
   const size_t curr_gap_len = gb_gap_len(gb);
 
-  dbg(">> pos %lld \t| gap len %zu \t| new gap start %zu", pos, curr_gap_len, new_gap_start);
+  dbg(">> pos %"PRId64" \t| gap len %zu \t| new gap start %zu", pos, curr_gap_len, new_gap_start);
 
   /* noop as new cursor position is same as current */
   if (new_gap_start == gb->gap_start_) {
@@ -386,7 +387,7 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
     int64_t new_gap_end = (int64_t)gb->gap_end_ + count;
     new_gap_end = new_gap_end > ((int64_t) gb_buf_len_with_gap(gb)) ? (int64_t)gb_buf_len_with_gap(gb) : new_gap_end;
 
-    dbg("-- delete count %lld \t| gap end %zu \t| new gap end %lld", count, gb->gap_end_, new_gap_end);
+    dbg("-- delete count %"PRId64" \t| gap end %zu \t| new gap end %"PRId64"", count, gb->gap_end_, new_gap_end);
     gb->length = gb->length - ((size_t)new_gap_end - gb->gap_end_);
     gb->gap_end_ = (size_t)new_gap_end;
   }
@@ -396,7 +397,7 @@ void gb_delete_chars(gb_t gb[const static 1], const int64_t count)
     int64_t new_gap_start = (int64_t)gb->gap_start_ + count; /* count will be -ve hence "+" */
     new_gap_start = new_gap_start < 0 ? 0 : new_gap_start;
 
-    dbg("-- backspc count %lld \t| gap start %zu \t| new gap start %lld", count ,gb->gap_start_, new_gap_start);
+    dbg("-- backspc count %"PRId64" \t| gap start %zu \t| new gap start %"PRId64"", count ,gb->gap_start_, new_gap_start);
     gb->length = gb->length - (gb->gap_start_ - (size_t)new_gap_start);
     gb->gap_start_ = (size_t)new_gap_start;
   }
@@ -417,7 +418,7 @@ size_t gb_get_cursor(gb_t gb[const static 1])
 size_t gb_copy_chars_as_cstr(gb_t gb[const static 1], char dst_cstr[const static 1], const int64_t count)
 {
   gb_dbg(">>", gb);
-  dbg(">> count %lld", count);
+  dbg(">> count %"PRId64"", count);
   gb_assert_validity(gb);
 
   if (count != 0) {
