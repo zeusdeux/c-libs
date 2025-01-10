@@ -73,6 +73,7 @@ FL_API void fc_deinit(fl_content_t fc[const static 1]);
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <stdio.h> /* for fileno */
 
 #if defined(FL_ARENA_TYPE) && (!defined(FL_ALLOC) || !defined(FL_FREE))
 _Static_assert(false, "When FL_ARENA_TYPE is defined, FL_ALLOC and FL_FREE must also be defined");
