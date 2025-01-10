@@ -36,14 +36,7 @@
 // declare our assertm macro before out multiple include guard (i.e., the #ifndef ZDX_UTIL_H_)
 // POSIX only. GG windows
 #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
-#if defined(__linux__)
-// this BS below to get fileno(3)
-// enabling this macro + including stdio seems to be necessary on ubuntu as per docs
-//     https://manpages.ubuntu.com/manpages/lunar/man3/fileno.3.html
-// why ubuntu? well, that's what the runner for github actions uses
-#define _POSIX_C_SOURCE 1
-#endif
-#include <stdio.h> /* needed for fprintf, fileno(3), etc */
+#include <stdio.h> /* needed for fprintf, etc */
 #include <stdlib.h> /* needed for abort(), exit(), EXIT_FAILURE macro etc */
 
 // this is because we allow multiple imports of zdx_util.h to have differing behavior

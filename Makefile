@@ -1,7 +1,11 @@
-FLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wdeprecated -Werror -pedantic -g
+# enabling the _POSIX_C_SOURCE macro + including stdio seems to be necessary on ubuntu as per docs
+# to get access to functions such as fileno(3)
+#    https://manpages.ubuntu.com/manpages/lunar/man3/fileno.3.html
+# why ubuntu? well, that's what the runner for github actions uses
+FLAGS = -std=c17 -Wall -Wextra -Wpedantic -Wdeprecated -Werror -pedantic -g -D_POSIX_C_SOURCE
 TEST_FLAGS = $(FLAGS) -O3
 
-DBG_FLAGS = -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror # -fsanitize=address,undefined <-- doesn't work on macos due to system integrity protection and actually breaks the leaks tool
+DBG_FLAGS = -D_POSIX_C_SOURCE -DZDX_TRACE_ENABLE -DDEBUG -std=c17 -pedantic -g -Wall -Wextra -Wdeprecated -Werror # -fsanitize=address,undefined <-- doesn't work on macos due to system integrity protection and actually breaks the leaks tool
 DBG_TEST_FLAGS = $(DBG_FLAGS)
 DBG_LINKER_FLAGS = -Wl,-v # show details of linker invocation by clang
 
