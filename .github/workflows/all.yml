@@ -5,8 +5,8 @@ on:
     paths:
       - .github/**/*
       - Makefile
-      - *.c
-      - *.h
+      - **.c
+      - **.h
       - tests/**/*.c
       - tests/**/*.h
       - tests/mocks/**/*
