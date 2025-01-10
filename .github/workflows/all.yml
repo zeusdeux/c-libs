@@ -5,13 +5,9 @@ on:
     paths:
       - .github/**/*
       - Makefile
-      - *.c
-      - *.h
-      - tests/**/*.c
-      - tests/**/*.h
-      - tests/mocks/**/*
-      - benchmarks/**/*.c
-      - benchmarks/**/*.h
+      - '**/*.c'
+      - '**/*.h'
+      - '**/mocks/**/*'
   workflow_dispatch:
 
 jobs:
