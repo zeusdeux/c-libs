@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "../zdx_util.h"
 #include "../zdx_test_utils.h"
@@ -7,12 +8,11 @@ int main(void)
 {
   {
     testlog(L_INFO, "Testing CLOSESTPOWEROF2 macro for uint32_t values");
-
     uint32_t p0 = CLOSESTPOWEROF2((uint32_t)0);
-    assertm(p0 == 0, "Expected: %u, Received: %u", (uint32_t)0, p0);
+    assertm(p0 == 0, "Expected: %"PRIu32", Received: %"PRIu32, (uint32_t)0, p0);
 
     uint32_t p1 = CLOSESTPOWEROF2((uint32_t)1);
-    assertm(p1 == 1, "Expected: %u, Received: %u", (uint32_t)1, p1);
+    assertm(p1 == 1, "Expected: %"PRIu32", Received: %"PRIu32, (uint32_t)1, p1);
 
     for (uint8_t i = 1; i < 31; i++) {
       // make sure to cast 1 to uint32_t to ensure it's a 32bit value
@@ -23,8 +23,8 @@ int main(void)
       uint32_t pm = CLOSESTPOWEROF2(m);
       uint32_t epm = (uint32_t)1 << (i + 1);
 
-      assertm(pn == n, "Expected: %u, Received: %u (i = %u)", n, pn, i);
-      assertm(pm == epm, "Expected: %u, Received: %u (i = %u)", epm, pm, i);
+      assertm(pn == n, "Expected: %"PRIu32", Received: %"PRIu32" (i = %"PRIu32")", n, pn, i);
+      assertm(pm == epm, "Expected: %"PRIu32", Received: %"PRIu32" (i = %"PRIu32")", epm, pm, i);
     }
   }
 
@@ -32,10 +32,10 @@ int main(void)
     testlog(L_INFO, "Testing CLOSESTPOWEROF2 macro for uint64_t values");
 
     uint64_t p0 = CLOSESTPOWEROF2((uint64_t)0);
-    assertm(p0 == 0, "Expected: %llu, Received: %llu", (uint64_t)0, p0);
+    assertm(p0 == 0, "Expected: %"PRIu64", Received: %"PRIu64, (uint64_t)0, p0);
 
     uint64_t p1 = CLOSESTPOWEROF2((uint64_t)1);
-    assertm(p1 == 1, "Expected: %llu, Received: %llu", (uint64_t)1, p1);
+    assertm(p1 == 1, "Expected: %"PRIu64", Received: %"PRIu64, (uint64_t)1, p1);
 
     for (uint64_t i = 31; i < 63; i++) {
       // make sure to cast 1 to uint32_t to ensure it's a 64bit value
@@ -47,8 +47,8 @@ int main(void)
       uint64_t pm = CLOSESTPOWEROF2(m);
       uint64_t epm = (uint64_t)1 << (i + 1);
 
-      assertm(pn == n, "Expected: %llu, Received: %llu (i = %llu)", n, pn, i);
-      assertm(pm == epm, "Expected: %llu, Received: %llu (i = %llu)", epm, pm, i);
+      assertm(pn == n, "Expected: %"PRIu64", Received: %"PRIu64" (i = %"PRIu64")", n, pn, i);
+      assertm(pm == epm, "Expected: %"PRIu64", Received: %"PRIu64" (i = %"PRIu64")", epm, pm, i);
     }
   }
 
