@@ -74,6 +74,52 @@
 #define zdx_el_sz(arr)   sizeof(*(arr))
 #define zdx_arr_len(arr) sizeof((arr)) / zdx_el_sz(arr)
 
+// Version is the lowest for gcc and clang that supports both _Generic from C11 and
+// statement expressions as used by the CLOSESTPOWEROF2 macro
+#if (__GNUC__ && __GNUC__ >= 5) || (__clang__ && __clang_major__ >= 5)
+
+#include <stdint.h> /* needed for uint<bits>_t types such as uint32_t, etc */
+
+// TODO(mudit): Remove POPCOUNTG and CLZG macros once __builtin_popcountg and __builtin_clzg
+//              are widely available on default compilers for platforms.
+
+#define POPCOUNTG(n) _Generic((n),                                      \
+                              unsigned int: __builtin_popcount,         \
+                              unsigned long: __builtin_popcountl,       \
+                              unsigned long long: __builtin_popcountll  \
+                              )((n))
+
+// DO NOT pass n == 0 to this as we aren't using the second param of
+// __builtin_clz{,l,ll} to return a fallback value when n == 0
+#define NONZERO_CLZG(n) _Generic((n),                                   \
+                                 unsigned int: __builtin_clz,           \
+                                 unsigned long: __builtin_clzl,         \
+                                 unsigned long long: __builtin_clzll    \
+                                 )((n))
+
+#define CLOSESTPOWEROF2(n)                                                              \
+  _Pragma("GCC diagnostic push")                                                        \
+  _Pragma("GCC diagnostic ignored \"-Wgnu-statement-expression-from-macro-expansion\"") \
+  ({                                                                                    \
+    uint8_t bits = sizeof(__typeof__((n))) * 8;                                         \
+                                                                                        \
+    __typeof__(n) result = n;                                                           \
+    uint8_t popcnt = POPCOUNTG((n));                                                    \
+                                                                                        \
+    if (popcnt > 1) {                                                                   \
+      uint8_t clz = NONZERO_CLZG(n);                                                    \
+                                                                                        \
+      result = (__typeof__(n))1 << (bits - clz);                                        \
+    }                                                                                   \
+                                                                                        \
+    result;                                                                             \
+  })                                                                                    \
+  _Pragma("GCC diagnostic pop")
+#else
+_Static_assert(0, "Unsupported compiler. Cannot define POPCOUNTG, NONZERO_CLZG and CLOSESTPOWEROF2");
+#endif // gnu and clang version check ifdef
+
+
 // POSIX only for all the helper macros below. GG windows
 #if defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
 

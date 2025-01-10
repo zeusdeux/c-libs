@@ -12,6 +12,18 @@ tags:
 	@find -E `pwd` -type f -regex ".+\.(c|h)$ " > cscope.files # the <space> after "$" in the regex is because make throws an error saying missing double quote `"` after `$` otherwise. Idk why
 	@cscope -b -q
 
+test_zdx_util:
+	@echo "--- Running tests on zdx_util.h release ---"
+	@clang $(TEST_FLAGS) ./tests/zdx_util_test.c -o ./tests/zdx_util_test && ./tests/zdx_util_test
+	@echo "--- Checking for memory leaks in zdx_util.h ---"
+	@[ -z "${CI}" ] && ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet 2>/dev/null --atExit -- ./tests/zdx_util_test
+
+test_zdx_util_dbg:
+	@echo "--- Running tests on zdx_util.h debug ---"
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_util_test.c -o ./tests/zdx_util_test_dbg && ./tests/zdx_util_test_dbg
+	@echo "--- Checking for memory leaks in zdx_util.h ---"
+	@[ -z "${CI}" ] && leaks --atExit -- ./tests/zdx_util_test_dbg
+
 test_zdx_da:
 	@echo "--- Running tests on zdx_da.h release ---"
 	@clang $(TEST_FLAGS) ./tests/zdx_da_test.c -o ./tests/zdx_da_test && ./tests/zdx_da_test
@@ -135,9 +147,9 @@ benchmark: benchmark_zdx_fast_hashtable
 
 bench: benchmark
 
-test: test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena test_zdx_hashtable test_zdx_flags
+test: test_zdx_util test_zdx_da test_zdx_str test_zdx_gap_buffer test_zdx_string_view test_zdx_simple_arena test_zdx_hashtable test_zdx_flags
 
-test_dbg: test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg test_zdx_simple_arena_dbg test_zdx_hashtable_dbg test_zdx_flags_dbg
+test_dbg: test_zdx_util_dbg test_zdx_da_dbg test_zdx_str_dbg test_zdx_gap_buffer_dbg test_zdx_string_view_dbg test_zdx_simple_arena_dbg test_zdx_hashtable_dbg test_zdx_flags_dbg
 
 clean:
 	$(RM) -fr ./tests/*_test ./tests/*_test_dbg ./tests/*.memgraph ./*.dSYM ./tests/*.dSYM
