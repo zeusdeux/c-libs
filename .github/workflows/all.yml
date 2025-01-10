@@ -55,4 +55,4 @@ jobs:
 
           alias clang=clang-15
           alias leaks=: # leaks is a macos only software
-          make test_dbg
+          make -d test_dbg
