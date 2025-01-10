@@ -31,7 +31,6 @@ jobs:
           set -ex
 
           alias clang=clang-15
-          alias leaks=: # leaks is a macos only software
           make test
 
   test-debug:
@@ -54,5 +53,4 @@ jobs:
           set -ex
 
           alias clang=clang-15
-          alias leaks=: # leaks is a macos only software
           make -d test_dbg
