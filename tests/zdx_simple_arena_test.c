@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #include "../zdx_test_utils.h"
 
@@ -482,7 +483,7 @@ static void test_arena_alloc(arena_t *const arena, const size_t sz, const size_t
   assertm(arena->offset == expected_offset, "Expected: %zu, Received: %zu", expected_offset, arena->offset);
 
   uint64_t n_bytes_alignment = (uintptr_t)n_bytes % expected_alignment;
-  assertm(n_bytes_alignment == 0, "Expected: %p aligned to 4, Received: %llu",(void *)n_bytes, n_bytes_alignment);
+  assertm(n_bytes_alignment == 0, "Expected: %p aligned to 4, Received: %"PRIu64,(void *)n_bytes, n_bytes_alignment);
 
   if (sz < 2) {
     char c = 'a';
