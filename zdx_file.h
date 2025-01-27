@@ -190,16 +190,6 @@ FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict
     return fc;
   }
 
-  if (feof(f)) {
-    fclose(f);
-
-    FL_FREE(contents_buf);
-    fc.err = "End of file reached while attempting to read";
-
-    fc_dbg("<<", fc);
-    return fc;
-  }
-
   fclose(f); /* safe to close as we have read contents into contents_buf */
 
   contents_buf[bytes_read] = '\0';
