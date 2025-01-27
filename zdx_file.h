@@ -74,6 +74,12 @@ FL_API void fc_deinit(fl_content_t fc[const static 1]);
 #include <unistd.h>
 #include <sys/stat.h>
 
+#ifndef PATH_MAX
+// for some reason on ubuntu, PATH_MAX is undefined even when limits.h is included
+// so YOLO-ing it. A better way is probably use pathconf("/", _PC_PATH_MAX) but meh for now
+#define PATH_MAX 1024
+#endif
+
 #if defined(FL_ARENA_TYPE) && (!defined(FL_ALLOC) || !defined(FL_FREE))
 _Static_assert(false, "When FL_ARENA_TYPE is defined, FL_ALLOC and FL_FREE must also be defined");
 #endif
