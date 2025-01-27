@@ -50,21 +50,13 @@ test_zdx_str_dbg:
 
 test_zdx_gap_buffer:
 	@echo "--- Running tests on zdx_gap_buffer.h release ---"
-        # enabling the _POSIX_C_SOURCE macro + including stdio seems to be necessary on ubuntu as per docs
-        # to get access to functions such as fileno(3)
-        #    https://manpages.ubuntu.com/manpages/lunar/man3/fileno.3.html
-        # why ubuntu? well, that's what the runner for github actions uses
-	@clang -D_GNU_SOURCE $(TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test && ./tests/zdx_gap_buffer_test
+	@clang $(TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test && ./tests/zdx_gap_buffer_test
 	@echo "--- Checking for memory leaks in zdx_gap_buffer.h ---"
 	@if [ -z "${CI}" ]; then ZDX_DISABLE_TEST_OUTPUT=true leaks --quiet 2>/dev/null --atExit -- ./tests/zdx_gap_buffer_test; else :; fi
 
 test_zdx_gap_buffer_dbg:
 	@echo "--- Running tests on zdx_gap_buffer.h debug ---"
-        # enabling the _GNU_SOURCE macro + including stdio seems to be necessary on ubuntu as per docs
-        # to get access to functions such as fileno(3)
-        #    https://manpages.ubuntu.com/manpages/lunar/man3/fileno.3.html
-        # why ubuntu? well, that's what the runner for github actions uses
-	@clang -D_GNU_SOURCE $(DBG_TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test_dbg && ./tests/zdx_gap_buffer_test_dbg
+	@clang $(DBG_TEST_FLAGS) ./tests/zdx_gap_buffer_test.c -o ./tests/zdx_gap_buffer_test_dbg && ./tests/zdx_gap_buffer_test_dbg
 	@echo "--- Checking for memory leaks in zdx_gap_buffer.h ---"
 	@if [ -z "${CI}" ]; then leaks --atExit -- ./tests/zdx_gap_buffer_test_dbg; else :; fi
 

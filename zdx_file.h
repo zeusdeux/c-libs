@@ -115,10 +115,11 @@ FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict
     return fc;
   }
 
-  /* stat file for file size */
-  struct stat s;
+  /* get file size */
+  // set file position indicator to file end (new pos measured in bytes)
+  int seek_success = fseek(f, 0, SEEK_END);
 
-  if (fstat(fileno(f), &s) != 0) {
+  if (seek_success < 0) {
     fclose(f);
     fc.err = strerror(errno);
 
@@ -126,23 +127,66 @@ FL_API fl_content_t fl_read_file(const char *restrict path, const char *restrict
     return fc;
   }
 
-  const size_t sz = ((size_t)s.st_size + 1) * sizeof(char);
+  // get file position indicator hence file size in bytes
+  long file_sz = ftell(f);
+
+  if (file_sz < 0) {
+    fclose(f);
+    fc.err = strerror(errno);
+
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  // reset file position indicator for file stream f so that we can read from it
+  seek_success = fseek(f, 0, SEEK_SET);
+
+  if (seek_success != 0) {
+    fclose(f);
+
+    fc.err = strerror(errno);
+
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  // NOTE(mudit): This pointer cast feels suuuuuper weird and is probably
+  // really not good but at this point we are sure that file_sz is gt 0
+  // due to checks above so it _should_ be good
+  // + 1 is for \0
+  const size_t sz = (*((size_t *)&file_sz) + 1) * sizeof(char);
 
   /* read full file and close */
 #ifdef FL_ARENA_TYPE
   char *contents_buf = FL_ALLOC(arena, sz);
+
+  if (arena->err) {
+    fclose(f);
+
+    fc.err = arena->err;
+
+    fc_dbg("<<", fc);
+    return fc;
+  }
 #else
   char *contents_buf = FL_ALLOC(sz);
 #endif
 
-  size_t bytes_read = fread(contents_buf, sizeof(char), (size_t)s.st_size, f);
+  size_t bytes_read = fread(contents_buf, sizeof(char), sz, f);
 
   fclose(f); /* safe to close as we have read contents into contents_buf */
 
   if (ferror(f)) {
     FL_FREE(contents_buf);
-    /* fc.err = "Reading file failed"; */
-    fc.err = strerror(errno);
+    fc.err = "Reading file failed";
+
+    fc_dbg("<<", fc);
+    return fc;
+  }
+
+  if (feof(f)) {
+    FL_FREE(contents_buf);
+    fc.err = "End of file reached while attempting to read";
 
     fc_dbg("<<", fc);
     return fc;
